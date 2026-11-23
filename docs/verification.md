@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-09-09 -->
+<!-- last_verified: 2026-11-23 -->
 # Verification
 
 What each gate actually checks, and how to recover when one fails. Read this
@@ -75,9 +75,13 @@ thing to go look at, not the boot.
 - **Contract**: checked-in OpenAPI artifact and frontend route drift
 - **E2E**: Playwright browser-driven smoke tests
 - **App verification**: throwaway, app-specific Playwright specs that drive a real browser through a real run
+- **Worker offline**: the GPU worker's cache, fetch, job loop, device selection and no-credentials rules on CPU with a fake pipeline and `httpx.MockTransport` (`pnpm test:worker`)
+- **Live self-test**: the whole system against real B2 and a real GPU (`pnpm selftest`, see below)
 
 ## Test placement
-- Backend: `services/api/tests/`
+- Backend: `services/api/tests/` (stubbed storage via the `fake_store` fixture, no network, no torch)
+- Worker: `services/worker/tests/`
+- Live: `services/api/live_tests/` (excluded from `pnpm test:api`)
 - E2E: `apps/web/e2e/` with config in `apps/web/playwright.config.ts`
 - App verification specs: `apps/web/e2e/verify/` (gitignored), sharing the fixtures in `apps/web/e2e/fixtures/`
 
@@ -216,6 +220,14 @@ When deliberately adding or updating an API dependency:
 4. Run `pnpm contract:check` and `pnpm verify`. If a contract change is
    unexpected, restore the prior input/lock instead of accepting generated
    OpenAPI churn.
+
+The worker has its own input and lock: `services/worker/requirements.txt`
+(lower and upper bounds, a verified window) and `services/worker/requirements.lock`
+(resolved on macOS arm64 with CPython 3.12: torch 2.15.0, diffusers 0.43.0,
+peft 0.22.0, transformers 5.24.0). Update it the same way, then prove it by
+recreating `services/worker/.venv` from the lock and running both
+`pnpm test:worker` and `pnpm selftest`; the offline tests alone never load a
+model, so they cannot catch a broken ML pin.
 
 If a fresh clone fails dependency installation, first confirm that
 `services/api/requirements.lock` is present and rerun `pnpm run setup`; do not
@@ -370,6 +382,33 @@ by `scripts/dev.sh`.
 so no gate in `pnpm verify` typechecks them; type errors there only surface
 when `pnpm test:e2e` runs.
 
+## Live self-test
+
+`pnpm selftest` runs `services/api/live_tests/test_selftest_lora_serving.py`
+(marker `selftest`). Prerequisites: real B2 credentials in the repo-root `.env`,
+both venvs, the SDXL base model (downloaded on first use, about 6.5 GB) and room
+for two SDXL pipelines (about 14 GB of device memory each on MPS). It takes
+about 9 minutes on an M4 Max.
+
+It sets `APP_PREFIX=selftest/<run-id>/lora-serving/`, `JOB_LEASE_SECONDS=15`
+and `JOB_HEARTBEAT_SECONDS=1`, starts the dispatcher and two workers (`w1`, `w2`,
+separate empty caches, no `B2_*` variables in their environment) as
+subprocesses, and asserts:
+
+1. Publish: the fixtures publish for `acme` (2 adapters) and `globex` (1); each weight re-read from B2 hashes to its manifest sha256.
+2. Isolation: one request per tenant at once, on different workers; each job's sha256 belongs to its own tenant; `adapters_after_unload == []`.
+3. Rejections: `acme` asking for `globex/papercut` 403, for `papercut` 404, through a tampered manifest pointing at a globex key 403; no job created.
+4. Checksums: every adapter completion is `sha256_verified`; a weight overwritten in B2 fails `checksum_mismatch` and leaves no cache entry.
+5. Cache: a repeat request on the same worker is `cache: hit` with `bytes_fetched: 0`.
+6. Swaps on one worker: A, B and base differ pairwise (mean absolute pixel difference > 3/255); A again equals A.
+7. Worker kill: with `w2` stopped, `w1` takes a 40-step job, is SIGKILLed at step 2 or later, `w2` restarts and finishes attempt 2 with the reference image (equal sha256, or max pixel difference <= 1/255); the late attempt-1 completion gets 409.
+8. Report: `reports/<run-id>/adapters.json` exists in B2 with `load_ms` and `generate_ms` for every succeeded job and `retried_jobs >= 1`.
+
+It then deletes only the keys it recorded writing, asserts the run prefix is
+empty, stops every process it started, and writes `evidence.json`, the output
+PNGs, the report and the process logs to `.local/selftest/<run-id>/`. The
+README's "Correctness evidence" section records the latest run.
+
 ## When to run
 - After behavior change: run relevant subset
 - Before PR: run `pnpm verify`
@@ -379,7 +418,8 @@ when `pnpm test:e2e` runs.
 ## Continuous Integration
 - `.github/workflows/ci.yml` runs `pnpm check:agent-docs` plus the two halves
   of `pnpm verify` — `pnpm verify:api` and `pnpm verify:web` — as parallel jobs
-  on every PR and push to `main`. Same gates as running `pnpm verify` locally,
+  on every PR and push to `main`, plus a fourth job that runs the worker's lint
+  and offline tests with only its light dependencies (no torch). Same gates as running `pnpm verify` locally,
   but they report independently, so a frontend failure never hides a backend
   failure.
 - No secrets required — backend tests deny socket access and mock the B2 repo

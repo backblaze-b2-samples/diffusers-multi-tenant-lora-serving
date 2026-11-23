@@ -1,67 +1,53 @@
 "use client";
 
-import { FileIcon, HardDrive, Upload, Download } from "lucide-react";
+import { Activity, Cpu, Database, Layers, Users } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
-import { LoadingNotice } from "@/components/common/loading-notice";
-import { useFileStats } from "@/lib/queries";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useJobs, useTenants, useWorkers } from "@/lib/queries";
+import { cacheHitRate } from "@/lib/report-chart";
 
+/** Tenants, adapters, jobs by state, workers online and the cache hit rate. */
 export function StatsCards() {
-  const { data: stats, isLoading, error, refetch } = useFileStats();
-
-  // Surface fetch failures inline rather than rendering "0 files / 0 B" —
-  // that lies to the user about the bucket state when really the API is
-  // just unreachable.
-  if (error) {
+  const tenants = useTenants();
+  const jobs = useJobs();
+  const workers = useWorkers();
+  if (tenants.error) {
     return (
       <Card>
         <CardContent className="p-0">
-          <ErrorState error={error} onRetry={() => refetch()} />
+          <ErrorState error={tenants.error} onRetry={() => tenants.refetch()} />
         </CardContent>
       </Card>
     );
   }
-
+  const t = tenants.data ?? [];
+  const j = jobs.data ?? [];
+  const count = (s: string) => j.filter((x) => x.state === s).length;
+  const rate = cacheHitRate(j);
   const cards = [
-    { title: "Total Files", value: stats?.total_files ?? 0, icon: FileIcon },
-    { title: "Storage Used", value: stats?.total_size_human ?? "0 B", icon: HardDrive },
-    { title: "Uploads Today", value: stats?.uploads_today ?? 0, icon: Upload },
-    { title: "Total Downloads", value: stats?.total_downloads ?? 0, icon: Download },
+    { title: "Tenants", value: String(t.length), hint: `${t.reduce((n, x) => n + x.adapter_count, 0)} adapters`, icon: Users },
+    { title: "Adapter versions", value: String(t.reduce((n, x) => n + x.version_count, 0)), hint: "in B2", icon: Layers },
+    { title: "Jobs", value: `${count("succeeded")} ok`, hint: `${count("queued")} queued · ${count("running")} running · ${count("failed")} failed`, icon: Activity },
+    { title: "Workers online", value: String((workers.data ?? []).filter((w) => w.online).length), hint: `${(workers.data ?? []).length} registered`, icon: Cpu },
+    { title: "Cache hit rate", value: rate === null ? "—" : `${Math.round(rate * 100)}%`, hint: "adapter jobs served from a worker's cache", icon: Database },
   ];
-
+  const loading = tenants.isLoading || jobs.isLoading;
   return (
-    <>
-      {/* Stats need a full bucket listing, which measured ~8s on a 16k-object
-          bucket. Four blank skeleton cards said nothing about that; this states
-          it in words and escalates if the wait keeps going. */}
-      {isLoading && (
-        <LoadingNotice className="mb-3" subject="bucket stats" />
-      )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card, i) => (
-          <Card
-            key={card.title}
-            className={`card-hover animate-fade-in-up stagger-${i + 1}`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between pt-4 pb-2 px-4 space-y-0">
-              <CardTitle className="text-xs font-semibold text-muted-foreground">
-                {card.title}
-              </CardTitle>
-              <div className="stat-icon-wrap">
-                <card.icon className="h-4 w-4" />
-              </div>
-            </CardHeader>
-            <CardContent className="pb-5 px-4">
-              {isLoading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-                <div className="stat-value">{card.value}</div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {cards.map((c, i) => (
+        <Card key={c.title} className={`animate-fade-in-up stagger-${Math.min(i + 1, 5)}`}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-5">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{c.title}</CardTitle>
+            <c.icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+          </CardHeader>
+          <CardContent className="px-5 pb-4">
+            {loading ? <Skeleton className="h-7 w-16" /> : <div className="text-2xl font-semibold tabular-nums">{c.value}</div>}
+            <p className="mt-1 text-xs text-muted-foreground">{c.hint}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }

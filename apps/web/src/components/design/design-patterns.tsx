@@ -81,7 +81,7 @@ export function DesignPatterns() {
             <EmptyState
               icon={Inbox}
               title="No uploads yet"
-              description="Drop files in the Upload page to see them here."
+              description="Publish adapters to see them here."
               action={
                 <Button size="sm" variant="outline">
                   Go to Upload

@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-09-09 -->
+<!-- last_verified: 2026-11-23 -->
 # Dev Workflows
 
 Engineering workflows for this repo: the command index, the per-task checklists,
@@ -31,6 +31,29 @@ and the release process. Two companion docs carry the reference material:
 - Backend lint: `pnpm lint:api`
 - E2E: `pnpm test:e2e` (run `pnpm --filter @diffusers-multi-tenant-lora-serving/web exec playwright install chromium` once first)
 - App verification specs: `pnpm test:verify` (specs in the gitignored `apps/web/e2e/verify/`)
+- One GPU worker: `pnpm worker`; two workers (`w1`, `w2`, separate caches): `pnpm dev:workers`
+- Publish the pinned demo adapters: `pnpm publish:fixtures`
+- Worker offline tests: `pnpm test:worker`; worker lint: `pnpm lint:worker`
+- Live end-to-end check (real B2, GPU, two workers): `pnpm selftest`
+
+## Two venvs and starting workers
+
+The dispatcher and the worker have separate Python 3.12 virtualenvs so the
+dispatcher never installs PyTorch:
+
+| Venv | Installs | Lockfile |
+|---|---|---|
+| `services/api/.venv` | FastAPI, boto3, huggingface_hub | `services/api/requirements.lock` |
+| `services/worker/.venv` | PyTorch, Diffusers, PEFT, transformers, httpx | `services/worker/requirements.lock` |
+
+`pnpm run setup` creates both. A worker reads only its own settings
+(`API_URL`, `WORKER_ID`, `WORKER_TOKEN`, `BASE_MODEL`, `BASE_MODEL_REVISION`,
+the `ADAPTER_CACHE_*` settings and `TORCH_DEVICE`) from the environment or the
+repo-root env file. Start the dispatcher first (`pnpm dev`), then the workers.
+Each worker loads the base model once (about 14 GB of device memory for SDXL on
+MPS); do not start more workers than fit, and stop the ones you start. On a new
+machine run `services/worker/scripts/spike_lora_swap.py` once to confirm
+per-request load and unload behave on that device.
 
 What each gate checks, its prerequisites, and how to recover when one fails:
 [verification.md](verification.md).
@@ -89,7 +112,7 @@ future issue and PR body and could never be corrected retroactively.
 
 ### Review ownership
 
-This starter kit has no `CODEOWNERS` file, so GitHub assigns no reviewer
+This sample has no `CODEOWNERS` file, so GitHub assigns no reviewer
 automatically — request one manually. This is the canonical statement of that
 status: if `CODEOWNERS` is ever added, update this section, and the templates
 that point here stay correct without edits.

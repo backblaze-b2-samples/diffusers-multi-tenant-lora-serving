@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import {
   FileIcon,
+  Sparkles,
   Moon,
   Sun,
 } from "lucide-react";

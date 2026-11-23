@@ -2,20 +2,25 @@
 
 ## Users
 
-AI coding agents and "vibe coders" (developers who lean on AI to move fast) who clone
-this kit as the foundation for a new full-stack app. Their context: they want to skip
-the boilerplate loop (dashboard, upload, file browser, cloud storage wiring) and go
-straight to building their app's unique features. They read the repo, keep the shared
-scaffolding, and rebrand + rewrite the dashboard for their own use case.
+ML platform engineers who serve image generation for many customers from a pool of
+shared GPU workers, and the AI coding agents that help them. Their context: each
+customer brings custom LoRA styles; they cannot keep every adapter loaded on every
+GPU, and loading the wrong customer's adapter would leak one tenant's model into
+another tenant's images. They read this sample to see a storage and serving
+pattern they can adopt: adapters and manifests in Backblaze B2, stateless workers,
+tenant-scoped resolution.
 
 ## Product Purpose
 
-An engineering-grade full-stack starter kit (Next.js 16 + React 19 + Tailwind v4 +
-shadcn/ui frontend, FastAPI backend) with Backblaze B2 cloud storage integrated out of
-the box. It ships a dashboard, drag-and-drop upload, and a file browser so builders
-start from a working app, not a blank page. Success = a builder can clone it, run it,
-rebrand it via one config file, and trust every screen enough to build on top without
-first fixing it.
+A working reference for multi-tenant LoRA serving on one shared Diffusers SDXL base
+model. B2 holds every tenant's adapters under its own prefix with a checksummed
+manifest; a dispatcher resolves each request through the requesting tenant's
+manifest and rejects cross-tenant adapters; credential-free workers fetch exactly
+one adapter through a short-lived presigned URL into a verified cache, load it,
+generate, and unload it; a killed worker's job finishes on another worker with the
+same seed and the same image. Success = an engineer runs it locally with two
+workers, sees isolation, cache hits and recovery work against a real bucket, and
+can lift the pattern into their own platform.
 
 ## Maturity and Support Boundary
 
@@ -32,14 +37,14 @@ and no SLA is provided for the repository software.
 Confident, precise, quietly professional. Voice is direct and free of hype ("Stop
 wiring boilerplate and start building"). The interface should feel like a modern
 developer tool — considered, calm, trustworthy — not a marketing showpiece. It is a
-**neutral foundation** that others rebrand: the design carries craft through restraint,
+**neutral foundation**: the design carries craft through restraint,
 not through a strong opinionated identity of its own.
 
 ## Anti-references
 
 - **Generic AI/SaaS slop.** No gradient text, hero-metric templates, identical
   icon-card grids, tracked uppercase eyebrows, or decorative glassmorphism. These are
-  the exact 2026 AI tells this kit exists to help builders avoid.
+  the exact AI tells this sample avoids.
 - **Over-branded / loud.** No heavy brand-color drenching, decorative motion, or flashy
   effects. It is scaffolding to be rebranded, not a hero page.
 - **Toy / prototype feel.** No missing states, inconsistent components, or placeholder
@@ -49,7 +54,7 @@ not through a strong opinionated identity of its own.
 
 ## Design Principles
 
-- **Practice what you preach.** The kit itself must model the engineering quality it
+- **Practice what you preach.** The sample must model the engineering quality it
   asks agents to produce. Slop here propagates into every project built on it.
 - **Neutral foundation, easy to rebrand.** Identity lives in tokens (`globals.css`) and
   one config file. Screens are built from the shared UI kit so a rebrand is a token

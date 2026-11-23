@@ -1,53 +1,57 @@
-<!-- last_verified: 2026-08-06 -->
+<!-- last_verified: 2026-11-23 -->
 # App Workflows
 
 User journeys inside the application.
 
-## Upload Files
+## Publish and Manage Adapters
 
-- User navigates to `/upload`
-- Drops or selects files in the dropzone
-- Client validates file size (max 100MB) and type
-- Files upload **directly from the browser to B2** (a presigned PUT). A determinate progress bar tracks the bytes leaving the browser; once they are all sent the row switches to "Verifying upload..." with an *indeterminate* sweeping bar while the API HEADs and magic-byte-sniffs the stored object. That phase has no percentage to report, and a bar parked at a full 100% read as finished-but-stuck
-- On success: toast notification, green checkmark, and a "View in Files" link through to the browser
-- On failure: red status icon with error message
-- User can clear completed uploads
-- The queue lives in an app-wide provider: navigating to another page keeps the upload running, shows an "Uploading N files" indicator in the header, and keeps the duplicate-upload guard armed
-- Reloading or closing mid-upload asks for confirmation first; if the upload dies anyway, the next load says which file didn't finish
-- See: [File Upload](features/file-upload.md)
+- User opens `/adapters`; the table lists every tenant's adapters (filter by tenant)
+- Empty registry: **Publish demo adapters** downloads three pinned SDXL LoRAs and publishes `acme/pixel-art`, `acme/3d-render` and `globex/papercut`
+- **Publish adapter** dialog: pick a tenant (or "New tenant…"), name the adapter and version, choose Hugging Face (repo, filename, pinned revision) or an uploaded `.safetensors` file, pick the license from the allowlist, optionally a default scale and trigger words. Publishing an existing version is refused (409); publish `v2` to change weights
+- The detail page `/adapters/<tenant>/<adapter>` shows versions with sha256, size, source and license, the tenant manifest entry, recent jobs and a Generate panel
+- **Edit** sheet changes the display name, default scale, trigger words and current version (the tenant manifest only)
+- **Verify checksum** (row action) re-reads the weight from B2 and compares it with the manifest
+- Delete one version (row action; not the current one while others exist) or the whole adapter from the danger zone after typing its name
+- See: [Adapter Registry](features/adapter-registry.md)
 
-## Browse and Manage Files
+## Generate Images
 
-- User navigates to `/files`
-- Page loads the 100 most recent objects from the API (sorted most recent first). While it loads, the page says so on screen and escalates the wording if the wait runs long — a full bucket listing measured 2.8s-21s cold
-- If that limit was hit, a notice states how many objects the bucket actually holds — the page never claims to show everything
-- Files displayed in tree view with folders and type-specific icons
-- Folders auto-expand on load until the *majority* of the listed files are reachable without clicking, so the page's own "click a file" instruction is always actionable. Stopping at the first visible file was not enough: one stray top-level object left the other 99 sealed in collapsed folders while the page claimed to show 100
-- Clicking a file row opens its preview; the per-row actions menu (preview / download / delete) is always visible, on every viewport
-- Arriving at `/files?preview=<key>` expands that file's folders and opens its preview directly. This is how the ⌘K palette and the dashboard's recent-uploads rows hand off a *specific* file; the param is consumed on arrival so it doesn't re-fire later
-- **Preview**: opens dialog with image/PDF preview + metadata panel, and the file's Download / Delete actions — the advertised "click a file" path offers everything the row menu does. The loading state holds until the media paints; a failure offers "Open in a new tab". The preview URL is signed with `Content-Disposition: inline` so PDFs render in place
-- **Download**: shows a pending state on the row plus a toast while the presigned URL is fetched, then starts the download via an anchor click (which, unlike a popup, still works if the click's user activation expired during a slow presign). Failures are reported; the click can never silently do nothing
-- **Delete**: the confirmation dialog stays open showing "Deleting..." until the request settles, then the row disappears with the toast (optimistic cache update) and the list reconciles with the server. The dialog is held deliberately — Radix closes on action click by default, which dismissed the only pending state and left the row looking untouched while the delete was still in flight
-- Empty bucket shows "No files found" with upload prompt
-- See: [File Browser](features/file-browser.md)
+- User opens `/generate` (or the Generate panel on an adapter page)
+- Picks a tenant, an adapter of that tenant (or "None (base model)"), a version, a prompt and optionally a seed; steps and size start from the Settings defaults
+- Submits; the card shows "Waiting for a worker", then "Step n / N on w1", then the image with seed, worker, cache result and load and generate times
+- **Advanced: raw adapter reference** accepts `owner/name[@version]`; asking for another tenant's adapter shows the 403 and states that no job was created
+- **Compare adapters** renders one prompt and seed across up to four adapters plus the base model and shows them side by side
+- See: [Generate and Compare](features/generate.md)
+
+## Review Runs
+
+- User opens `/runs`: every run with its job count, state and whether its report exists
+- `/runs/<run-id>` shows each job's image labelled with its tenant and adapter, so a cross-tenant leak would be visible, then the `adapters.json` summary (cache hits, load and generate p50, retried jobs) and a stacked timing chart per job
+- A job that a dead worker abandoned shows attempt 2 on another worker
+- See: [Runs and Reports](features/runs-and-reports.md)
+
+## Browse the Library
+
+- User opens `/library` and optionally filters by tenant
+- **Adapters** tab: tenant, then adapter, then version, with every object and its size
+- **Outputs** tab: a gallery of generated images; a tile opens the object in the bucket explorer preview
+- **Reports** tab: each run's `adapters.json`, linking to the run
+- See: [Library](features/library.md)
+
+## Browse the Bucket
+
+- User opens `/files`: the 100 most recent objects in the whole bucket, including objects this app did not write, in a folder tree
+- Clicking a file opens its preview with Download and Delete; "Detailed metadata" shows checksums and image size
+- See: [Bucket Explorer](features/file-browser.md)
 
 ## View Dashboard
 
-- User navigates to `/` (home)
-- Three parallel API calls load: stats, recent files, upload activity — all served from one shared bucket listing that the API warms at startup
-- While stats load, the page states it in words above the cards rather than showing silent skeletons
-- Stats cards show: total files, storage used, uploads today, total downloads
-- Upload chart shows last 7 days of upload activity as bar chart
-- Recent uploads table shows last 10 files with filename, size, type, date. Each filename links to that file's preview on `/files` — `/files` teaches "click a file to preview it", so the same gesture here has to answer rather than being inert text
-- Empty state: "No files uploaded yet" messages
+- User opens `/`: tenants, adapter versions, jobs by state, workers online and the adapter cache hit rate
+- The timing chart stacks fetch, load, generate and unload time for the latest finished jobs; the recent jobs table links each job to its run
 - See: [Dashboard](features/dashboard.md)
 
 ## Change Preferences
 
-- User navigates to `/settings`
-- A banner at the top states that the page is mostly a demonstration: only Theme is wired up for real, the rest showcases what a settings page can look like when you adapt the kit
-- **Theme** (real): editing it and saving applies it immediately and persists it (`next-themes`), and the header's theme toggle drives the same state
-- **Profile and preference fields** (demo): Display name, Bio, Default file view (Tree/List/Grid), Email me on every upload, Warn me when approaching quota + threshold. Each is labelled "Demo field", persists to `localStorage` only, and drives no behaviour — there is no account system, mailer, quota banner, activity log, or List/Grid view behind them yet
-- Saving reports honestly: a success toast that separates the real theme change from the locally-stored demo values, or a warning toast if the browser blocked storage (theme still changes). It never claims a save that did not happen — the original page toasted "Settings saved" for fields that changed nothing
-- Danger Zone actions are a demo — no real delete runs
+- User opens `/settings`, sets the theme and the default steps and size for new Generate and Compare forms, and saves (stored in this browser)
+- The read-only Server card shows the base model, app prefix, presigned URL lifetimes, job lease, workers online and the license allowlist
 - See: [Settings](features/settings.md)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FolderOpen, RefreshCw, Upload } from "lucide-react";
+import { FolderOpen, Layers, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -200,12 +200,12 @@ export function FileBrowser() {
             <EmptyState
               icon={FolderOpen}
               title="This bucket is empty"
-              description="Upload some files to see them listed here."
+              description="Publish adapters from the Adapters page to see objects here."
               action={
                 <Button asChild size="sm">
-                  <Link href="/upload">
-                    <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-                    Upload files
+                  <Link href="/adapters">
+                    <Layers aria-hidden="true" className="h-3.5 w-3.5" />
+                    Go to Adapters
                   </Link>
                 </Button>
               }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus } from "lucide-react";
@@ -88,8 +88,8 @@ export function PublishAdapterDialog({ defaultTenant }: { defaultTenant?: string
       trigger_words: "",
     },
   });
-  const source = form.watch("source");
-  const tenantChoice = form.watch("tenantChoice");
+  const source = useWatch({ control: form.control, name: "source" });
+  const tenantChoice = useWatch({ control: form.control, name: "tenantChoice" });
 
   const onSubmit = (v: PublishValues) => {
     const tenant_id = v.tenantChoice === NEW_TENANT ? (v.newTenant ?? "") : v.tenantChoice;

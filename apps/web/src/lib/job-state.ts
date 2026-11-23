@@ -17,7 +17,7 @@ export function jobStateBadge(state: JobState): { label: string; variant: BadgeV
       return { label: "Running", variant: "secondary" };
     case "succeeded":
       return { label: "Succeeded", variant: "default" };
-    case "failed":
+    default:
       return { label: "Failed", variant: "destructive" };
   }
 }

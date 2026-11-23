@@ -515,7 +515,15 @@ function main() {
   // that wrote as it went would leave the tree half-updated when a later file
   // failed its size guard — which is the kind of quiet mess this whole change
   // exists to remove.
-  const plan = MODULES.map((module) => {
+  // A delivery runbook (infra/<target>/README.md) is generated only for a
+  // declared deployment target, so a sample with `deployment_targets: []`
+  // ships no runbook for a platform it cannot deploy to.
+  const modules = MODULES.filter(
+    (module) =>
+      !module.file.startsWith("infra/") ||
+      manifest.deployment_targets.includes(module.file.split("/")[1]),
+  );
+  const plan = modules.map((module) => {
     const { text, changed } = applyRegions(module.file, module.regions, context);
     guardSize(module.file, text);
     return { file: module.file, text, changed };

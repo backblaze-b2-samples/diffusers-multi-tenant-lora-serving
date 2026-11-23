@@ -4,82 +4,62 @@
   "name": "Diffusers Multi-Tenant LoRA Serving",
   "slug": "diffusers-multi-tenant-lora-serving",
   "package_scope": "@diffusers-multi-tenant-lora-serving",
-  "purpose": "A well-engineered full-stack foundation — dashboard, drag-and-drop upload and a file browser — with Backblaze B2 storage already wired in, so builders skip the boilerplate loop.",
-  "tagline": "Stop wiring boilerplate and start building.",
-  "primary_entity": { "schema": "FileMetadata", "singular": "file", "plural": "files" },
+  "purpose": "Serve many tenants' LoRA adapters from Backblaze B2 on one shared Diffusers base model, with stateless GPU workers that resolve each request through the tenant's manifest, fetch only that adapter through a short-lived presigned URL and a verified cache, and load and unload it per request.",
+  "tagline": "One base model, every tenant's LoRA adapters in B2, loaded per request.",
+  "primary_entity": { "schema": "AdapterDetail", "singular": "adapter", "plural": "adapters" },
   "features": [
-    {
-      "title": "File Upload",
-      "route": "/upload",
-      "doc": "docs/features/file-upload.md",
-      "summary": "drag-and-drop upload with real-time progress",
-      "workflow_heading": "Upload Files"
-    },
-    {
-      "title": "File Browser",
-      "route": "/files",
-      "doc": "docs/features/file-browser.md",
-      "summary": "list, preview, download, delete files",
-      "workflow_heading": "Browse and Manage Files"
-    },
-    {
-      "title": "Dashboard",
-      "route": "/",
-      "doc": "docs/features/dashboard.md",
-      "summary": "stats cards, upload chart, recent uploads",
-      "workflow_heading": "View Dashboard"
-    },
-    {
-      "title": "Metadata Extraction",
-      "route": null,
-      "doc": "docs/features/metadata-extraction.md",
-      "summary": "image dimensions, EXIF, PDF info, checksums"
-    },
-    {
-      "title": "Settings",
-      "route": "/settings",
-      "doc": "docs/features/settings.md",
-      "summary": "theme plus labelled demo preference fields",
-      "workflow_heading": "Change Preferences"
-    }
+    { "title": "Adapter Registry", "route": "/adapters", "doc": "docs/features/adapter-registry.md", "summary": "publish, version, edit, verify and delete tenant LoRA adapters", "workflow_heading": "Publish and Manage Adapters" },
+    { "title": "Adapter Serving", "route": null, "doc": "docs/features/adapter-serving.md", "summary": "tenant-scoped resolution, presigned fetch, verified cache, load and unload per request" },
+    { "title": "Generate and Compare", "route": "/generate", "doc": "docs/features/generate.md", "summary": "generate per tenant and adapter, compare adapters on one seed", "workflow_heading": "Generate Images" },
+    { "title": "Runs and Reports", "route": "/runs", "doc": "docs/features/runs-and-reports.md", "summary": "jobs, worker recovery and adapters.json timing reports", "workflow_heading": "Review Runs" },
+    { "title": "Library", "route": "/library", "doc": "docs/features/library.md", "summary": "adapters, outputs and reports under the app prefix", "workflow_heading": "Browse the Library" },
+    { "title": "Bucket Explorer", "route": "/files", "doc": "docs/features/file-browser.md", "summary": "browse, preview, download and delete any object in the bucket", "workflow_heading": "Browse the Bucket" },
+    { "title": "Dashboard", "route": "/", "doc": "docs/features/dashboard.md", "summary": "tenants, adapters, workers, cache hits and timings", "workflow_heading": "View Dashboard" },
+    { "title": "Settings", "route": "/settings", "doc": "docs/features/settings.md", "summary": "theme, generate defaults and read-only server config", "workflow_heading": "Change Preferences" }
   ],
   "b2_surface": [
-    { "operation": "put_object", "why": "store an uploaded object" },
-    { "operation": "presigned PUT", "why": "the browser uploads bytes directly to B2, bypassing the Function payload cap" },
-    { "operation": "list_objects_v2", "why": "the shared full-bucket listing behind the file list and the stats cards" },
-    { "operation": "head_object", "why": "cheap per-key metadata, and the /health connectivity probe" },
-    { "operation": "get_object", "why": "re-read bytes to recompute rich metadata on demand" },
-    { "operation": "presigned GET", "why": "download and inline preview URLs" },
-    { "operation": "delete_object", "why": "remove an object" }
+    { "operation": "upload_fileobj / put_object", "why": "store adapter weights, manifests and run reports" },
+    { "operation": "head_object", "why": "check weight and output sizes, and the /health probe" },
+    { "operation": "get_object", "why": "read manifests and reports, and re-read weights to verify sha256" },
+    { "operation": "list_objects_v2", "why": "discover tenants and back the Library and bucket explorer" },
+    { "operation": "presigned GET", "why": "workers fetch one adapter without credentials; UI image previews" },
+    { "operation": "presigned PUT", "why": "workers upload generated images without credentials" },
+    { "operation": "delete_object / delete_objects", "why": "delete an adapter or version inside its own prefix, and explorer deletes" }
   ],
-  "b2_key_prefix": "uploads/",
+  "b2_key_prefix": "lora-serving/",
   "stack": {
     "web": "Next.js 16, React 19, Tailwind v4, shadcn/ui, TanStack Query, Recharts",
-    "api": "FastAPI, Python 3.12+, boto3, Pydantic v2, Pillow, pypdf",
+    "api": "FastAPI, Python 3.12+, boto3, Pydantic v2, huggingface_hub, SQLite; workers: PyTorch, Diffusers, PEFT, httpx",
     "storage": "Backblaze B2 (S3-compatible API)",
     "package_manager": "pnpm workspaces"
   },
-  "deployment_targets": ["vercel", "railway"],
+  "deployment_targets": [],
   "env_vars": [
-    { "name": "B2_APPLICATION_KEY_ID", "required": true, "secret": true, "note": "B2 application key ID (**keyID** in the B2 console)" },
-    { "name": "B2_APPLICATION_KEY", "required": true, "secret": true, "note": "B2 application key (**applicationKey**) — shown once at creation" },
+    { "name": "B2_APPLICATION_KEY_ID", "required": true, "secret": true, "note": "B2 application key ID (**keyID** in the B2 console); dispatcher only" },
+    { "name": "B2_APPLICATION_KEY", "required": true, "secret": true, "note": "B2 application key (**applicationKey**), shown once at creation; dispatcher only" },
     { "name": "B2_BUCKET_NAME", "required": true, "secret": false, "note": "bucket unique name (**Bucket Unique Name** in the B2 console)" },
     { "name": "B2_REGION", "required": true, "secret": false, "note": "the region inside the bucket's **Endpoint** (`s3.<region>.backblazeb2.com`); the S3 endpoint is derived from it" },
     { "name": "B2_PUBLIC_URL_BASE", "required": false, "secret": false, "note": "public object base URL, when the bucket is public" },
-    { "name": "NEXT_PUBLIC_API_URL", "required": false, "secret": false, "note": "separate-origin deploys only; Next.js inlines it at build time" }
+    { "name": "NEXT_PUBLIC_API_URL", "required": false, "secret": false, "note": "separate-origin API only; Next.js inlines it at build time" },
+    { "name": "BASE_MODEL", "required": false, "secret": false, "note": "shared base model id; default stabilityai/stable-diffusion-xl-base-1.0" },
+    { "name": "BASE_MODEL_REVISION", "required": false, "secret": false, "note": "optional commit pin for the base model (worker)" },
+    { "name": "APP_PREFIX", "required": false, "secret": false, "note": "key prefix for adapters, outputs and reports; default lora-serving/" },
+    { "name": "ADAPTER_URL_TTL_SECONDS", "required": false, "secret": false, "note": "presigned adapter URL lifetime; default 300" },
+    { "name": "OUTPUT_URL_TTL_SECONDS", "required": false, "secret": false, "note": "presigned output upload URL lifetime; default 600" },
+    { "name": "JOB_LEASE_SECONDS", "required": false, "secret": false, "note": "job lease before a silent worker's job is retried; default 30" },
+    { "name": "JOB_HEARTBEAT_SECONDS", "required": false, "secret": false, "note": "worker heartbeat interval; default 5" },
+    { "name": "JOB_MAX_ATTEMPTS", "required": false, "secret": false, "note": "attempts before a job fails; default 3" },
+    { "name": "JOBS_DB_PATH", "required": false, "secret": false, "note": "SQLite job queue file; default services/api/.data/jobs.sqlite3" },
+    { "name": "WORKER_TOKEN", "required": false, "secret": true, "note": "shared token that worker routes require when set" },
+    { "name": "API_URL", "required": false, "secret": false, "note": "dispatcher URL the worker calls; default http://localhost:8000" },
+    { "name": "WORKER_ID", "required": false, "secret": false, "note": "worker name in jobs and reports; default w-<pid>" },
+    { "name": "ADAPTER_CACHE_DIR", "required": false, "secret": false, "note": "worker adapter cache; default services/worker/.cache/adapters" },
+    { "name": "ADAPTER_CACHE_MAX_BYTES", "required": false, "secret": false, "note": "worker cache LRU limit; default 4 GiB" },
+    { "name": "ADAPTER_CACHE_VERIFY_ON_HIT", "required": false, "secret": false, "note": "re-hash a cached adapter before load; default true" },
+    { "name": "TORCH_DEVICE", "required": false, "secret": false, "note": "cuda, mps or cpu; default autodetect CUDA, then MPS, then CPU" },
+    { "name": "HF_TOKEN", "required": false, "secret": true, "note": "only for gated or private Hugging Face adapter sources" }
   ],
   "attribution_token": "b2ai-diffusers-lora-weights-hub",
   "repo": { "org": "backblaze-b2-samples", "name": "diffusers-multi-tenant-lora-serving" },
-  "screenshots": [
-    {
-      "path": "docs/images/b2-starterkit-dashboard1.png",
-      "alt": "Dashboard view showing stat cards, upload activity chart, and recent uploads table",
-      "caption": "**Dashboard** — stats, upload activity, and recent uploads at a glance:"
-    },
-    {
-      "path": "docs/images/b2-starterkit-fileview2.png",
-      "alt": "File browser view showing a tree of files with hover actions",
-      "caption": "**File browser** — tree view with preview, download, and delete:"
-    }
-  ]
+  "screenshots": []
 }

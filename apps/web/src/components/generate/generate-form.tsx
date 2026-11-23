@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ShieldAlert, Wand2 } from "lucide-react";
 import type { GenerationRequest } from "@diffusers-multi-tenant-lora-serving/shared";
 
@@ -15,7 +15,8 @@ import { JobImage } from "@/components/jobs/job-image";
 import { SCALE_OPTIONS, scaleOption } from "@/lib/adapter-form";
 import { formatAdapterRef, isolationMessage, parseAdapterRef } from "@/lib/adapter-ref";
 import { ApiError } from "@/lib/api-client";
-import { SIZE_OPTIONS, STEP_OPTIONS, loadDemoPreferences } from "@/lib/demo-preferences";
+import { SIZE_OPTIONS, STEP_OPTIONS } from "@/lib/demo-preferences";
+import { useDemoPreferences } from "@/lib/use-demo-preferences";
 import { useAdapter, useAdapters, useCreateGeneration, useJob, useTenants } from "@/lib/queries";
 
 const BASE = "__base__";
@@ -29,13 +30,17 @@ interface GenerateFormProps {
 /** One request: a tenant, one of its adapters (or the base model), prompt and seed. */
 export function GenerateForm({ tenantId, adapter }: GenerateFormProps) {
   const { data: tenants = [] } = useTenants();
-  const [tenant, setTenant] = useState(tenantId ?? "");
+  const [tenantChoice, setTenant] = useState(tenantId ?? "");
+  const tenant = tenantChoice || tenants[0]?.tenant_id || "";
   const [adapterName, setAdapterName] = useState(adapter ?? BASE);
   const [version, setVersion] = useState("");
   const [prompt, setPrompt] = useState("");
   const [seed, setSeed] = useState("");
-  const [steps, setSteps] = useState<string>(STEP_OPTIONS[1]);
-  const [size, setSize] = useState<string>(SIZE_OPTIONS[1]);
+  const prefs = useDemoPreferences();
+  const [stepsChoice, setSteps] = useState("");
+  const [sizeChoice, setSize] = useState("");
+  const steps = stepsChoice || prefs.defaultSteps;
+  const size = sizeChoice || prefs.defaultSize;
   const [scale, setScale] = useState("");
   const [rawRef, setRawRef] = useState("");
   const [jobId, setJobId] = useState<string>();
@@ -44,14 +49,6 @@ export function GenerateForm({ tenantId, adapter }: GenerateFormProps) {
   const detail = useAdapter(tenant, adapterName === BASE ? "" : adapterName);
   const { data: job } = useJob(jobId);
 
-  useEffect(() => {
-    const prefs = loadDemoPreferences();
-    setSteps(prefs.defaultSteps);
-    setSize(prefs.defaultSize);
-  }, []);
-  useEffect(() => {
-    if (!tenant && tenants.length > 0) setTenant(tenants[0].tenant_id);
-  }, [tenant, tenants]);
   const versions = adapterName === BASE ? [] : (detail.data?.versions ?? []);
   const currentVersion = detail.data?.current_version ?? "";
   const defaultScale = detail.data ? scaleOption(detail.data.default_scale) : "";

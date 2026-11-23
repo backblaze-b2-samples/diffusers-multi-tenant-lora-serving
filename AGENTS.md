@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-08-06 -->
+<!-- last_verified: 2026-11-23 -->
 # AGENTS.md
 
 This is the authoritative control surface for all coding agents. Read this first.
@@ -18,33 +18,36 @@ packages/shared/   Shared TypeScript types, generated from the API contract
 docs/              System of record (features, workflows, security, reliability)
 docs/exec-plans/   Execution plans, tech debt, and sample.json (the gen:docs input)
 scripts/gen/       Generator policy: API naming, sample-manifest schema
-infra/vercel/      Vercel deployment contract
-infra/railway/     Railway delivery contract (per-service railway.json at their service roots)
 ```
 <!-- gen:end agents-repo-map -->
+
+Also: `services/worker/` (the GPU worker, its own venv: PyTorch, Diffusers,
+PEFT, httpx; never boto3) and `fixtures/adapters.yaml` (pinned demo adapters).
 
 ## 2. Shared Scaffolding Contract
 
 These pieces are shared scaffolding rather than app-specific code: keep them, and adapt only what this app actually requires.
 
 **Keep as-is (do not strip, rename, or replace)**
-- **UI kit / design system.** `apps/web/src/components/ui/` (shadcn primitives), the design tokens in `apps/web/src/app/globals.css`, and the `/design` reference page. Build new screens with these primitives; never edit the generated `components/ui/` files directly. Restyling happens through tokens in `globals.css`.
-- **File Explorer.** `/files` route, `apps/web/src/app/files/`, and `apps/web/src/components/files/`. The Files sidebar entry in `apps/web/src/components/layout/app-sidebar.tsx` stays.
-- **Upload.** `/upload` route, `apps/web/src/app/upload/`, and `apps/web/src/components/upload/`. The Upload sidebar entry stays.
-- The sidebar nav itself (Dashboard, Upload, Files, Settings, plus the Design System utility link).
+- **UI kit / design system.** `apps/web/src/components/ui/` (shadcn primitives), the design tokens in `apps/web/src/app/globals.css`, and the `/design` reference page. Build new screens with these primitives; never edit the generated `components/ui/` files directly.
+- **Bucket explorer.** `/files`, `apps/web/src/app/files/` and `apps/web/src/components/files/`: the full-bucket browse, kept even though the Library covers the app's own objects, because it is the place to inspect anything the app did not write.
+- The sidebar nav (`apps/web/src/lib/nav.ts`: Dashboard, Adapters, Generate, Runs, Library, Files, Settings, plus the Design System link).
 
-**Adapt to this app**
-- **Dashboard.** `/` route and `apps/web/src/components/dashboard/` (stats cards, upload chart, recent uploads table) are illustrative defaults. Replace them with metrics, charts, and tables that reflect what this app actually does (e.g. transcripts processed, embeddings indexed, classifications run). New aggregations must flow through the same `runtime -> service -> repo` layering and be exposed via TanStack Query hooks in `apps/web/src/lib/queries.ts` — no bare `useEffect + fetch`, and no hand-added `qk` entry: query keys come from `pnpm gen:api`.
-- Update `docs/features/dashboard.md` in the same PR as any dashboard change (see §9).
+**Trimmed for this sample**: the kit's browser Upload page and its presigned upload routes, metadata extraction (pypdf), and the Vercel and Railway runbooks. Adapters enter B2 only through the registry's publish path, which validates and checksums them.
 
-**Why this contract exists** — the UI kit, Files, and Upload pages are the reusable B2-backed scaffolding; stripping them costs the app its whole storage surface. The dashboard is the one screen designed to be rewritten per app.
+**This app's own surface**
+- Adapter registry (`/adapters`), Generate and Compare (`/generate`), Runs (`/runs`), Library (`/library`) and the rewritten Dashboard (`/`). New aggregations flow through `runtime -> service -> repo` and TanStack Query hooks in `apps/web/src/lib/queries.ts`; query keys come from `pnpm gen:api`.
+- Update the matching `docs/features/*.md` in the same PR (see §9).
 
 ## 3. Architectural Invariants
 
 **Backend layering**: `types` -> `config` -> `repo` -> `service` -> `runtime`
 
 - No backward imports across layers
-- No `boto3` outside `repo/`
+- No `boto3` outside `repo/`; no `huggingface_hub` outside `repo/hf_source.py`; no torch or Diffusers anywhere in `services/api`
+- Tenant isolation lives in `service/resolver.py`: never build an adapter key from request input without it, and never sign a URL before a worker claims a job
+- The tenant manifest is written last on every publish (`service/registry.py`)
+- `services/worker` never imports boto3 and never reads `B2_*` (enforced by `services/worker/tests/test_no_boto3.py`)
 - No business logic in route handlers (`runtime/`)
 - All external APIs wrapped in `repo/` adapters
 - All request/response data validated at boundary (Pydantic models)
@@ -171,6 +174,13 @@ with a recovery instruction. The API's complete Python 3.12 resolution is
 committed in `services/api/requirements.lock`; setup and CI install it. Update it
 only with the reviewed workflow in [docs/verification.md](docs/verification.md#python-dependency-updates).
 
+This sample adds `pnpm worker`, `pnpm dev:workers`, `pnpm publish:fixtures`,
+`pnpm test:worker` (worker offline tests, CPU, fake pipeline) and
+`pnpm selftest` (the live end-to-end check: real B2, a GPU, two workers; see
+[docs/verification.md](docs/verification.md#live-self-test)). The worker venv
+and its lock live in `services/worker/`. Never run two heavy ML processes at
+once outside the self-test's own two workers, and stop any worker you start.
+
 ## 7. Agent Workflow
 
 1. Read this file first.
@@ -225,8 +235,6 @@ If documentation and implementation conflict, update docs in the same PR. Docume
 | The API contract itself | [docs/api/openapi.json](docs/api/openapi.json) |
 | Execution plans | [docs/exec-plans/](docs/exec-plans/) |
 | Tech debt | [docs/exec-plans/tech-debt-tracker.md](docs/exec-plans/tech-debt-tracker.md) |
-| Deploying to vercel | [infra/vercel/README.md](infra/vercel/README.md) |
-| Deploying to railway | [infra/railway/README.md](infra/railway/README.md) |
 <!-- gen:end agents-doc-map -->
 
 ## 11. When Unsure
@@ -244,7 +252,7 @@ If documentation and implementation conflict, update docs in the same PR. Docume
 ## 13. External Delivery
 
 - Never provision, deploy, migrate, publish, or create an externally reachable preview without the user's explicit approval.
-- For approved Railway or Vercel work, follow the selected platform's delivery
-  contract — [infra/railway/README.md](infra/railway/README.md) or
-  [infra/vercel/README.md](infra/vercel/README.md) — for configuration, review,
-  verification, rollback, and cleanup.
+- This sample has no deployment target: workers need a local GPU. Running the
+  dispatcher and workers on other hosts is a user-approved action; set the same
+  `WORKER_TOKEN` on the dispatcher and every worker first (see
+  [docs/SECURITY.md](docs/SECURITY.md)).

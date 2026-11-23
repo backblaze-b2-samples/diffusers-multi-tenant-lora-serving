@@ -1,70 +1,69 @@
-<!-- last_verified: 2026-08-06 -->
+<!-- last_verified: 2026-11-23 -->
 # Reliability
 
 Reliability expectations and practices for this project.
 
 ## Health Checks
 
-- `GET /health` verifies B2 connectivity and returns `healthy` or `degraded`
-- Health endpoint is always available, even when B2 is down
-- The B2 client bounds connection attempts to 5 seconds, socket reads to 30
-  seconds, and standard retries to 3 total attempts. Normal tests mock this
-  boundary and deny network access; real connectivity is opt-in through
-  `RUN_LIVE_B2_TESTS=1 pnpm test:live:b2`.
+- `GET /health` reports B2 connectivity (`healthy` or `degraded`), the base model and the number of workers online; it answers HTTP 200 even when B2 is down
+- The B2 client bounds connects to 5 s, reads to 30 s, and retries to 3 total attempts
+- `GET /workers` shows each worker's device, last heartbeat or claim, current job and cache size
+
+## Publish: Manifest Last
+
+- A version becomes resolvable only when the tenant manifest is rewritten, after the weight is stored (size checked with `head_object`) and the immutable version manifest is written
+- A failure at any earlier step leaves the tenant manifest unchanged, so requests never resolve to a half-published version; the stray weight or version manifest is harmless and the same version can be retried only after deleting it (publishing an existing version is 409)
+- One dispatcher owns manifest writes, serialized by a per-tenant lock. Several dispatchers writing one tenant's manifest concurrently is out of scope
+- The dispatcher caches a manifest for 10 s, then revalidates it with a HEAD (ETag); its own writes replace the cached copy at once. A manifest edited outside the app is picked up within about 10 s
+
+## Jobs: Leases and Retries
+
+- The queue is SQLite in WAL mode (`JOBS_DB_PATH`); a claim runs in one transaction under one lock, so a job is never handed to two workers
+- A claim leases the job for `JOB_LEASE_SECONDS` (default 30) and increments `attempt`; the worker heartbeats every `JOB_HEARTBEAT_SECONDS` (default 5) with the current step
+- A worker that dies stops heartbeating; the next claim re-queues the expired job with the same seed (attempt + 1), up to `JOB_MAX_ATTEMPTS` (default 3), then marks it `failed: lease_exhausted`
+- **Same seed, same image**: generation uses `torch.Generator("cpu").manual_seed(seed)` on the same base model and the same adapter bytes, so the retry renders the identical image. Measured: the self-test's SIGKILLed job came back bit-identical from the other worker
+- **Stale attempts are rejected**: heartbeats, completions and failures are accepted only from the current `(worker_id, attempt)`; anything else gets 409 `stale_attempt`, and a worker that receives it stops at the next denoising step and drops its result
+- Presigned URLs are issued fresh on every claim, so a retried job never relies on an expired URL
+- The dispatcher checks the output exists in B2 (`head_object`) before marking a job `succeeded`
 
 ## Error Handling
 
-- HTTP handlers return structured error responses with appropriate status codes
-- External service failures (B2) are caught and surfaced as 500/503 responses
-- No unhandled exceptions leak stack traces to clients
-- Uncaught exceptions are converted to a typed JSON 500 (`{"detail": "Internal server error"}`, modeled by `app.types.ErrorResponse`) by the catch-all in `timing_middleware`
-- **Error responses carry CORS headers.** `CORSMiddleware` is registered LAST in `main.py` so it is the outermost middleware and wraps every response — including uncaught-exception 500s produced by the inner catch-all. This is intentional and load-bearing: if a 500 shipped without `Access-Control-Allow-Origin`, the browser would block it and the frontend would surface only an opaque "network error", hiding the real server bug. Regression-guarded by `tests/test_error_handling.py::test_unhandled_exception_500_carries_cors_headers`.
+- Expected failures use `AppError` and return `{"detail", "code"}` with a stable code
+- Uncaught exceptions become a typed JSON 500 in `timing_middleware`
+- `CORSMiddleware` is outermost, so error responses keep their CORS headers (regression-guarded by `tests/test_error_handling.py`)
+
+## Worker Robustness
+
+- The adapter is unloaded in a `finally`, so a failed generation never leaves it loaded
+- A download streams to a temp file and is moved into the cache only after the sha256 and size match; a cache entry is re-hashed before use (`ADAPTER_CACHE_VERIFY_ON_HIT`), and a bad one is dropped and refetched
+- The cache evicts least-recently-used files above `ADAPTER_CACHE_MAX_BYTES`
+- A worker retries registration and claims while the dispatcher is unreachable
 
 ## Logging
 
-- Structured JSON logging via Python stdlib
-- Every request gets a `request_id` for tracing
-- Log levels: ERROR for failures, WARNING for degraded state, INFO for requests
+- Structured JSON logging in the dispatcher and the workers; every request has a `request_id`; rejections log tenant and code
 
 ## Observability
 
-- Request timing middleware logs duration for every request
-- `/metrics` endpoint exposes basic Prometheus-format counters
-- Upload success/failure counts tracked
+- `/metrics`: per-route request counts and durations, `adapter_rejections_total{code}`
+- `reports/<run-id>/adapters.json`: per-job fetch, load, generate and unload times, cache results and retries
 
 ## Stateful Counters — durability caveats
 
-The download counter and the `/metrics` counters are **in-process, per replica**. Consequences to plan for before scaling:
-
-- **Download counter** (`app/repo/counter.py`) persists to a JSON file at `DOWNLOAD_COUNT_FILE` (default `.data/download_count.json`, resolved from the repo root — deliberately outside `services/api/`, which `uvicorn --reload` watches, so a download never writes into the dev reloader's watch tree). On an ephemeral filesystem (Railway without a mounted volume or Vercel Functions) it **resets to 0 on every redeploy**. With multiple replicas or Function instances each keeps its own file/count. For durable, shared counts: mount a persistent volume or swap the adapter for Redis/DB.
-- **`/metrics` counters** live in process memory and reset on restart. Behind a load balancer, each replica reports only its own slice — scrape with an instance label and aggregate, or push to a shared collector.
+- The job queue survives a dispatcher restart (SQLite file); `/metrics` counters and the download counter are in-process and reset on restart
+- The download counter persists to `DOWNLOAD_COUNT_FILE` (default `.data/download_count.json` at the repo root)
 
 ## Rate Limiting
 
-- Per-IP fixed-window limiter (`app/runtime/ratelimit.py`); `RATE_LIMIT_PER_MINUTE` / `RATE_LIMIT_WRITE_PER_MINUTE` are the budgets. Rejected requests get `429` with a `Retry-After` header.
-- Counters are in-process per replica; horizontal scaling needs a shared store (e.g. Redis) for a global limit.
+- Per-IP limiter on browser routes; `/worker/*` is exempt and gated by `WORKER_TOKEN`
 
 ## Graceful Degradation
 
-- File listing returns empty list (not error) when B2 has no objects
-- Metadata extraction failures don't block upload (return partial metadata)
-- Frontend shows skeleton states while loading, error states on failure — and, for the bucket-listing waits that can run for seconds, on-screen copy that escalates instead of silent skeletons (`lib/loading-progress.ts`)
-- A full bucket listing (needed by both `/files` and `/files/stats`) is cached, warmed at startup, and served **stale-while-revalidate**: after the first scan, an expired entry is returned immediately while a background thread refreshes it, so a slow or failing B2 list never turns into a user-visible 8-20s wait. `LIST_CACHE_TTL_SECONDS` (default 300) bounds staleness for changes made outside this app; the app's own uploads and deletes invalidate the cache outright. A failed background refresh keeps serving the previous snapshot and is logged
-- `WARM_LIST_CACHE_ON_STARTUP=false` skips the startup scan (offline dev, or when startup must not touch B2)
+- No workers online: jobs wait in the queue and run when a worker connects
+- B2 unreachable at claim time: the job stays leased without URLs, the lease expires, and a later claim retries it
+- Bucket explorer listing is cached and served stale-while-revalidate (`LIST_CACHE_TTL_SECONDS`); `WARM_LIST_CACHE_ON_STARTUP=false` skips the startup scan
 
 ## Deployment
 
-- The API contracts check `/health`; it confirms process readiness, but the
-  response is still HTTP 200 when B2 is degraded. Promotion therefore also
-  requires `b2_connected: true` and an affected-flow smoke test.
-- Railway uses a persistent service model; Vercel runs the API as a Function.
-  On Vercel, set `WARM_LIST_CACHE_ON_STARTUP=false` to avoid a cold-start bucket
-  scan. Uploads go directly from the browser to B2 (presigned PUT), so they no
-  longer pass through the Function and Vercel's 4.5 MB payload ceiling does not
-  apply — `MAX_FILE_SIZE` can stay at the 100 MB default. The bucket must allow
-  the deploy origin in its CORS (see infra/vercel/README.md).
-- See [infra/railway/README.md](../infra/railway/README.md) or
-  [infra/vercel/README.md](../infra/vercel/README.md) for the selected
-  platform's versioned configuration, approval, rollback, and cleanup procedure.
-- Environment-specific configuration uses platform variables; no environment
-  values are committed to the repository.
+- No platform runbook ships: workers need a local GPU. Run one dispatcher and point workers at it with `API_URL` and a shared `WORKER_TOKEN`
+- Environment-specific configuration uses environment variables; no values are committed

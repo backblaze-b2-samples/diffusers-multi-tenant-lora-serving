@@ -198,6 +198,7 @@ export function useAdapter(tenantId: string, adapter: string) {
   return useQuery<AdapterDetail, ApiError>({
     queryKey: [...qk.adapter(), tenantId, adapter],
     queryFn: () => getAdapter(tenantId, adapter),
+    enabled: !!tenantId && !!adapter,
     retry: (count, err) => !err.isNotFound && count < 2,
   });
 }

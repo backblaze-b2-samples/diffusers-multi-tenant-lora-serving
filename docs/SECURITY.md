@@ -1,99 +1,116 @@
-<!-- last_verified: 2026-07-30 -->
+<!-- last_verified: 2026-11-23 -->
 # Security
 
-Security principles and implementation for the diffusers-multi-tenant-lora-serving.
+Security principles and implementation for diffusers-multi-tenant-lora-serving.
 
 ## Trust Boundaries
 
-- **Frontend -> API**: CORS-restricted to configured origins, scoped to `GET/POST/DELETE/OPTIONS`. `allow_credentials` is `False` (no cookie/session auth today); enable it only alongside real auth and a tightened origin allowlist.
-- **API -> B2**: Authenticated via `B2_APPLICATION_KEY_ID` + `B2_APPLICATION_KEY`, signature v4
-- **Client -> B2**: Presigned URLs for download (10-min expiry, `Content-Disposition: attachment`) and for direct upload (short-lived PUT with the size and content-type signed in, so B2 rejects a mismatched body)
+- **Browser -> dispatcher**: CORS-restricted to configured origins, scoped to `GET/POST/PATCH/DELETE/OPTIONS`. `allow_credentials` is `False`.
+- **Worker -> dispatcher**: the `/worker/*` routes. When `WORKER_TOKEN` is set, every one of them requires `Authorization: Bearer <token>` (compared in constant time); `pnpm run doctor` warns while it is unset.
+- **Dispatcher -> B2**: the only holder of `B2_APPLICATION_KEY_ID` and `B2_APPLICATION_KEY`; SigV4; every call carries `user_agent_extra=b2ai-diffusers-lora-weights-hub`.
+- **Worker -> B2**: presigned URLs only, issued at claim time, never at enqueue:
+  - a GET for exactly one adapter weight, valid `ADAPTER_URL_TTL_SECONDS` (default 300 s);
+  - a PUT for exactly one output key, bound to `Content-Type: image/png`, valid `OUTPUT_URL_TTL_SECONDS` (default 600 s).
+- **Browser -> B2**: presigned GETs for image previews and bucket-explorer downloads.
 
-## Authentication & Multi-Tenancy
+## Workers Hold No Credentials
 
-- **No auth by design.** The file API (`/files`, `/files-by-key`, `/upload/presign`, `/upload/verify`) is unauthenticated and bucket-wide — any client can list, download, delete, and (via presign) upload objects. Acceptable for a single-tenant demo; the rate limiter guards the open endpoints.
-- **Adding auth to a clone does not close this automatically.** A login screen alone leaves an open, cross-user file API. You must both (1) require auth on every file route and (2) scope listings and reads to the caller's own prefixes — skipping either lets one signed-in user read and delete another's files. See the co-located notes in `runtime/files.py` and `service/files.py`.
+A worker runs model code on a GPU host. It never receives a bucket key: it reads
+only its own settings (`API_URL`, `WORKER_ID`, `WORKER_TOKEN`, base model, cache
+and device settings), never imports boto3 and never reads a `B2_*` variable,
+even from the shared env file. `services/worker/tests/test_no_boto3.py` enforces
+all three. A leaked presigned URL exposes one adapter for at most five minutes.
 
-## Upload Validation
+## Tenant Isolation
 
-Uploads go directly from the browser to B2, so the API validates at two points:
-`/upload/presign` (before any bytes) and `/upload/verify` (after the PUT).
+- A generation request resolves only through `adapters/<tenant>/manifest.json`
+  (`services/api/app/service/resolver.py`).
+- `owner/name` naming another tenant -> 403 `cross_tenant_adapter`.
+- A name or version missing from this tenant's manifest -> 404 `adapter_not_found`;
+  the response never says whether another tenant has that name.
+- A manifest entry whose weight or manifest key leaves `adapters/<tenant>/`, or a
+  version manifest whose `tenant_id`, weight key or sha256 disagrees -> 403
+  `manifest_tenant_mismatch` (defends against a tampered manifest).
+- No job row and no presigned URL exist for any rejected request; each rejection
+  is logged with tenant and code and counted in `adapter_rejections_total`.
+- Workers re-check that the claim's tenant owns the weight key before fetching,
+  and cache files at `<cache>/<tenant>/<sha256>.safetensors`, so one tenant's
+  request is never served a file another tenant's request downloaded.
+- After every job the worker deletes the job-scoped adapter and reports
+  `adapters_after_unload`; anything left loaded fails the job (`adapter_residue`).
 
-- Filename sanitization: path traversal, null bytes, unsafe chars stripped; the API mints the object key (`uploads/{sanitised}`), so the client never chooses it
-- MIME/extension consistency check against the allowlist (at presign)
-- Size enforcement: the declared size is signed into the presigned PUT as `Content-Length`, so B2 rejects a body of any other size with `403`; the API refuses to presign a size above the 100MB default
-- Content-type allowlist (images, PDFs, text, archives, audio/video), also signed into the PUT. **SVG is excluded** — it can embed `<script>` that executes when served from a public bucket URL (stored XSS). Re-add only with server-side sanitization.
-- **Magic-byte signature check** (at verify): a `Range` GET fetches the leading bytes and confirms they match the declared type, so a script payload can't masquerade as `image/png`; a mismatch deletes the object. Text-like types (plain/CSV/JSON) have no signature and skip this check.
-- Empty file rejection (at presign)
-- The `/upload/presign` endpoint hands out short-lived, single-key, size- and type-bound B2 write URLs. Like the rest of the API it is unauthenticated, and it is guarded by the write rate limiter.
+## Authentication
+
+There is no user authentication by design: the tenant in a request path is
+trusted as given. This is a sample of the storage and serving pattern, not of
+identity. In production, put an authenticating gateway in front of the
+dispatcher that derives the tenant from the caller's identity and sets it, and
+do not expose the dispatcher directly. The bucket explorer (`/files`) is
+bucket-wide and equally unauthenticated.
+
+## Adapter Validation
+
+- Only safetensors: the file must be named `.safetensors` and its header must
+  parse and account for the whole file. Pickle formats (`.bin`, `.pt`, `.ckpt`)
+  can execute code on load and are refused.
+- Licenses must be in the dispatcher's allowlist (`creativeml-openrail-m`,
+  `openrail++`, `apache-2.0`, `mit`).
+- Identifiers must match `^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$` and versions
+  `v1[.2[.3]]`, so no key can escape its prefix.
+- Every weight is stored with its sha256 and size; workers verify both before a
+  file enters their cache, and "Verify checksum" re-reads the stored object.
+
+## Prefix-Scoped Deletes
+
+Deleting an adapter or version first removes it from the tenant manifest, then
+lists exactly the objects under `adapters/<tenant>/<adapter>/[<version>/]`
+(trailing slash, so `pixel-art` never matches `pixel-art-xl`) and refuses to
+delete any key outside that prefix. The self-test deletes only the keys it
+recorded writing and then asserts its run prefix is empty.
 
 ## Rate Limiting
 
-- Per-IP fixed-window limiter (`app/runtime/ratelimit.py`), configurable via `RATE_LIMIT_PER_MINUTE` (reads) and `RATE_LIMIT_WRITE_PER_MINUTE` (uploads/deletes/downloads). Guards against DoS and Backblaze transaction/egress cost amplification on the unauthenticated endpoints.
-- In-process, per replica. Horizontal scaling needs a shared store (e.g. Redis) — see [RELIABILITY.md](RELIABILITY.md).
+- Per-IP fixed-window limiter (`app/runtime/ratelimit.py`), configurable via `RATE_LIMIT_PER_MINUTE` and `RATE_LIMIT_WRITE_PER_MINUTE`.
+- `/worker/*` is exempt: it is machine traffic from known workers (long polls and heartbeats every few seconds, often from one IP) and is gated by `WORKER_TOKEN` instead.
+- In-process, per replica.
 
 ## File Key Validation
 
-- Empty keys rejected
-- Path traversal patterns rejected (`../`, `%2e%2e`, backslashes, null bytes)
-- Optional prefix confinement: set `ALLOWED_KEY_PREFIX` (e.g. `uploads/`) to restrict key-addressed reads/deletes when the bucket is shared with other workloads. Empty by default — the by-key routes otherwise accept arbitrary folder and reserved-word keys by design.
-
-## Download Safety
-
-- Presigned URLs force `Content-Disposition: attachment`
-- Prevents inline rendering of user-uploaded content (XSS mitigation)
+- Empty keys and traversal patterns (`../`, `%2e%2e`, backslashes, null bytes) are rejected on the bucket explorer's by-key routes.
+- Optional `ALLOWED_KEY_PREFIX` confines explorer reads and deletes.
 
 ## Response Hardening
 
-- Baseline headers on every API response: `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`
-- Interactive API docs (`/docs`, `/redoc`, `/openapi.json`) are on by default but can be disabled with `ENABLE_DOCS=false` to hide the API surface in production
+- `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer` on every response
+- `ENABLE_DOCS=false` hides `/docs`, `/redoc` and `/openapi.json`
 
 ## CI Permissions
 
-- `.github/workflows/ci.yml` sets `permissions: contents: read` at the workflow level, so `GITHUB_TOKEN` is read-only in every job. Without an explicit block the token inherits the repository default, which can be read/write — a compromised dependency or action could then push commits or edit issues.
-- Widen per job, never at the top level: a job that must write (annotations, PR comments, releases) gets its own `permissions` block scoped to just that need.
+- `.github/workflows/ci.yml` sets `permissions: contents: read`; widen per job only.
 
 ## Secrets Management
 
-- All secrets loaded via environment variables (pydantic-settings)
-- Never committed to source control
-- `.env.example` documents required variables without values
+- Secrets come from environment variables or the repo-root `.env` (never committed). `.env.example` documents every variable without values.
+- Secret variables: `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `WORKER_TOKEN`, `HF_TOKEN`.
 
 ## Dependency and Secret Detection
 
-- [`.github/dependabot.yml`](../.github/dependabot.yml) opens weekly update
-  PRs for the root pnpm workspace and `services/api` Python dependencies. Review
-  each dependency and lockfile change before merging.
-- [`.pre-commit-config.yaml`](../.pre-commit-config.yaml) runs a pinned
-  `detect-secrets` hook against staged changes. It is a lightweight local guard,
-  not a reason to commit a secret baseline or scan findings. The generated pnpm
-  lockfile is excluded because its integrity hashes are not credentials.
-- GitHub secret scanning and push protection are provider-level settings. A
-  repository or organization administrator should enable them when available;
-  their state cannot be enforced by repository files. Do not represent those
-  settings as enabled until an administrator confirms them.
+- [`.github/dependabot.yml`](../.github/dependabot.yml) opens weekly update PRs; review each lockfile change before merging.
+- [`.pre-commit-config.yaml`](../.pre-commit-config.yaml) runs a pinned `detect-secrets` hook on staged changes.
+- GitHub secret scanning and push protection are provider settings an administrator enables.
 
-## Deployment Configuration
+## Model Licenses
 
-The [Railway](../infra/railway/README.md) and
-[Vercel](../infra/vercel/README.md) delivery contracts are the canonical
-locations for production variable classification and environment access rules.
-In particular, `B2_APPLICATION_KEY_ID` and `B2_APPLICATION_KEY` are secrets; the web
-service's `NEXT_PUBLIC_API_URL` is intentionally public build-time
-configuration and must never contain a credential. Keep production variables,
-logs, and metrics restricted to authorized operators.
+The base model and two demo adapters are Open RAIL licensed, with use-based
+restrictions that users of the models and of generated content must accept; see
+[README — Model and adapter licenses](../README.md#model-and-adapter-licenses).
 
 ## Agent Security Rules
 
 - Never commit `.env`, credentials, or API keys
 - Never print them either — the canonical rule lives in
-  [AGENTS.md §12 — Secret Handling](../AGENTS.md#12-secret-handling) (agents
-  read AGENTS.md first); don't restate it here, it only drifts. The link is
-  anchored and `pnpm check:agent-docs` verifies that it still resolves, so
-  renumbering that section fails the build instead of silently dropping the
-  reader at the top of the file
+  [AGENTS.md §12 — Secret Handling](../AGENTS.md#12-secret-handling)
 - The user request and trusted repository instructions are authoritative; see
   [AGENTS.md — Instruction Authority](../AGENTS.md#instruction-authority).
-- Never weaken validation without explicit instruction
-- Never bypass CORS, auth, or input sanitization
+- Never weaken validation or tenant checks without explicit instruction
 - Always validate at system boundaries

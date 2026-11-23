@@ -1,39 +1,57 @@
-<!-- last_verified: 2026-08-06 -->
+<!-- last_verified: 2026-11-23 -->
 # Architecture
 
 ## Components
 
 <!-- gen:begin arch-components -->
-A well-engineered full-stack foundation — dashboard, drag-and-drop upload and a file browser — with Backblaze B2 storage already wired in, so builders skip the boilerplate loop.
+Serve many tenants' LoRA adapters from Backblaze B2 on one shared Diffusers base model, with stateless GPU workers that resolve each request through the tenant's manifest, fetch only that adapter through a short-lived presigned URL and a verified cache, and load and unload it per request.
 
 - **apps/web/** — Next.js 16, React 19, Tailwind v4, shadcn/ui, TanStack Query, Recharts
-  - File Upload (`/upload`) — drag-and-drop upload with real-time progress
-  - File Browser (`/files`) — list, preview, download, delete files
-  - Dashboard (`/`) — stats cards, upload chart, recent uploads
-  - Settings (`/settings`) — theme plus labelled demo preference fields
-- **services/api/** — FastAPI, Python 3.12+, boto3, Pydantic v2, Pillow, pypdf
+  - Adapter Registry (`/adapters`) — publish, version, edit, verify and delete tenant LoRA adapters
+  - Generate and Compare (`/generate`) — generate per tenant and adapter, compare adapters on one seed
+  - Runs and Reports (`/runs`) — jobs, worker recovery and adapters.json timing reports
+  - Library (`/library`) — adapters, outputs and reports under the app prefix
+  - Bucket Explorer (`/files`) — browse, preview, download and delete any object in the bucket
+  - Dashboard (`/`) — tenants, adapters, workers, cache hits and timings
+  - Settings (`/settings`) — theme, generate defaults and read-only server config
+- **services/api/** — FastAPI, Python 3.12+, boto3, Pydantic v2, huggingface_hub, SQLite; workers: PyTorch, Diffusers, PEFT, httpx
   - REST API for every operation the frontend consumes, exported to `docs/api/openapi.json`
   - Backblaze B2 (S3-compatible API) access isolated in the `repo/` layer
-  - Metadata Extraction — image dimensions, EXIF, PDF info, checksums
+  - Adapter Serving — tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
   - Structured JSON logging with request tracing, plus `/health` and Prometheus `/metrics`
 - **packages/shared/** — TypeScript types generated from the API contract by `pnpm gen:api`, consumed by `apps/web/` as a workspace dependency (pnpm workspaces)
 <!-- gen:end arch-components -->
 
 ## Backend Layering
 
-The API follows a strict layered architecture:
+Two process types share one contract:
+
+- **Dispatcher** (`services/api`, FastAPI): the only process with B2
+  credentials. Adapter registry, tenant-scoped resolution, presigned URL
+  issuing, the SQLite job queue with leases, run reports, the Library and the
+  bucket explorer.
+- **Workers** (`services/worker`, own venv): load the base pipeline once, then
+  claim a job over HTTP, fetch one adapter through the presigned URL in the
+  claim (or the local cache), verify its sha256, load, generate, unload, upload
+  the image through a presigned PUT and report timings. A worker holds no B2
+  credentials, imports no boto3 and keeps no job state.
+
+The dispatcher follows a strict layered architecture:
 
 ```
-types/     Pydantic models — no logic, no imports from other layers
+types/     Pydantic models and identifier rules — no I/O
   |
 config/    Settings (pydantic-settings) — depends only on types
   |
-repo/      Data access (boto3 B2 client) — no business logic
+repo/      Data access: boto3 B2 client, adapter store, SQLite job DB, Hugging Face source
   |
-service/   Business logic — calls repo, returns types
+service/   Registry, resolver, jobs, reports, library — calls repo, returns types
   |
 runtime/   FastAPI routes — calls service, never repo directly
 ```
+
+Torch and Diffusers live only in `services/worker/`, so the dispatcher's test
+suite stays fast and torch-free.
 
 ### Layering Rules
 
@@ -62,34 +80,22 @@ services/api/
 
 ## Boundary Invariants
 
-- **No external SDK leakage**: `boto3` is only imported in `app/repo/`. All other layers interact with B2 through the repo interface.
-- **No raw dicts at boundaries**: All data crossing layer boundaries uses typed Pydantic models.
-- **No cross-layer mutable state**: Configuration is read-only after init, and no mutable state is shared *between* layers. Intra-layer caches/counters (the listing cache in `repo/list_cache.py`, the B2 connectivity cache in `repo/b2_client.py`, the download counter in `repo/counter.py`, the rate-limit and metrics state in `runtime/`) are module-local and guarded by a `threading.Lock`. The listing cache also owns the only background thread in the app: a stale entry is served immediately while that thread re-scans (stale-while-revalidate), and `main.lifespan` warms it once at startup so no user pays for the cold full-bucket scan.
-- **Validated inputs**: All HTTP inputs validated by FastAPI/Pydantic. File keys reject empty and path-traversal patterns; optional prefix confinement via `ALLOWED_KEY_PREFIX` (off by default).
+- **No external SDK leakage**: `boto3` is only imported in `app/repo/`, and `huggingface_hub` only in `app/repo/hf_source.py` (both asserted by `tests/test_structure.py`). The dispatcher never imports torch or Diffusers; the worker never imports boto3 or reads a `B2_*` key (`services/worker/tests/test_no_boto3.py`).
+- **Tenant isolation**: a request resolves only through `adapters/<tenant>/manifest.json`; every manifest key must stay under `adapters/<tenant>/`. Rejections happen before a job row or a presigned URL exists.
+- **Manifest last**: a version becomes resolvable only when the tenant manifest is rewritten, after the weight and the version manifest are in B2. One dispatcher owns manifest writes, serialized by a per-tenant lock.
+- **No raw dicts at boundaries**: data crossing layers uses typed Pydantic models; `repo/jobs_db.py` returns rows that `service/reports.py` turns into `Job` models.
+- **No cross-layer mutable state**: intra-layer caches (listing cache, manifest cache, connectivity cache, rate-limit and metrics state) are module-local and lock-guarded. The SQLite connection is shared under one lock; WAL mode.
+- **Validated inputs**: identifiers match `^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$`, versions `v1[.2[.3]]`, run ids `[a-z0-9-]`; file keys reject traversal patterns.
 
 ## Deployment
 
-- **Local dev** — `pnpm dev` runs both services via `concurrently`
-  - Web: `localhost:3000`
-  - API: `localhost:8000`
-- **Railway** — two services from the same repository: `web` builds from the
-  repository root because it consumes `packages/shared`; `api` builds from
-  `services/api`. Each service's versioned config sits at its own root —
-  `railway.json` and `services/api/railway.json` — the default path Railway
-  discovers, so a one-click template deploy inherits the same build, start, and
-  health behavior with nothing to configure by hand. The human-approved
-  staging/production contract lives in [infra/railway/README.md](infra/railway/README.md).
-- **Vercel** — one project using [Vercel Services](https://vercel.com/docs/services):
-  the `web` (Next.js) and `api` (FastAPI) services build from the same repo and
-  share one origin — the web app at `/`, the API under `/api`. The repo-root
-  `vercel.json` declares both services and routes `/api/*` to the API service;
-  the Vercel-only `services/api/index.py` strips the `/api` prefix so FastAPI
-  keeps its native paths (`/health`, `/files`, …). Uploads go directly from the
-  browser to B2 via a presigned PUT (see
-  [File Upload](docs/features/file-upload.md)), so they bypass the Function's
-  4.5 MB payload ceiling entirely — the bucket must allow the deploy origin in
-  its CORS. A two-separate-Projects alternative and the full delivery contract
-  live in [infra/vercel/README.md](infra/vercel/README.md).
+- **Local** — `pnpm dev` runs the dispatcher (`localhost:8000`) and the web app
+  (`localhost:3000`); `pnpm dev:workers` starts two workers (`w1`, `w2`, separate
+  adapter caches). Workers run natively, not in Docker: MPS is not available
+  inside containers.
+- **GPU hosts** — one dispatcher, any number of workers pointed at it with
+  `API_URL` and a shared `WORKER_TOKEN`. There is no serverless target, so the
+  sample ships no Vercel or Railway runbook (`deployment_targets` is empty).
 
 External provisioning and deployment remain explicit user-approved actions.
 
@@ -97,45 +103,49 @@ External provisioning and deployment remain explicit user-approved actions.
 
 <!-- gen:begin arch-data-stores -->
 - **Backblaze B2 (S3-compatible API)** — the only data store; there is no application database
-  - Every object this app writes lives under the `uploads/` key prefix of one bucket
+  - Every object this app writes lives under the `lora-serving/` key prefix of one bucket
   - Listing, per-key metadata and presigned URLs all come from the S3 surface below
-  - The primary entity is `FileMetadata`; one file is one object
+  - The primary entity is `AdapterDetail`; one adapter is one object
 <!-- gen:end arch-data-stores -->
 
 ## External Services
 
 <!-- gen:begin arch-external-services -->
 - **Backblaze B2 (S3-compatible API)** — reached only through `services/api/app/repo/`, using:
-  - `put_object` — store an uploaded object
-  - `presigned PUT` — the browser uploads bytes directly to B2, bypassing the Function payload cap
-  - `list_objects_v2` — the shared full-bucket listing behind the file list and the stats cards
-  - `head_object` — cheap per-key metadata, and the /health connectivity probe
-  - `get_object` — re-read bytes to recompute rich metadata on demand
-  - `presigned GET` — download and inline preview URLs
-  - `delete_object` — remove an object
+  - `upload_fileobj / put_object` — store adapter weights, manifests and run reports
+  - `head_object` — check weight and output sizes, and the /health probe
+  - `get_object` — read manifests and reports, and re-read weights to verify sha256
+  - `list_objects_v2` — discover tenants and back the Library and bucket explorer
+  - `presigned GET` — workers fetch one adapter without credentials; UI image previews
+  - `presigned PUT` — workers upload generated images without credentials
+  - `delete_object / delete_objects` — delete an adapter or version inside its own prefix, and explorer deletes
 <!-- gen:end arch-external-services -->
 
 ## Trust Boundaries
 
 See [docs/SECURITY.md](docs/SECURITY.md) for full security documentation.
 
-- **Frontend -> API** — CORS-restricted to configured origins. `CORSMiddleware` is registered LAST in `main.py` (outermost) so it wraps **every** response, including uncaught-exception 500s — otherwise the browser would block error responses and the UI would only see an opaque "network error". See [docs/RELIABILITY.md](docs/RELIABILITY.md#error-handling). A per-IP rate-limit middleware sits inner to CORS; see [docs/SECURITY.md](docs/SECURITY.md#rate-limiting).
-- **API -> B2** — authenticated via application keys, signature v4
-- **Client -> B2** — presigned URLs for download (10-min expiry, forced attachment)
+- **Browser -> dispatcher** — CORS-restricted; `CORSMiddleware` is outermost so error responses keep their headers. No authentication: the tenant in the path is trusted as given; production puts an authenticating gateway in front.
+- **Worker -> dispatcher** — `/worker/*` routes; `Authorization: Bearer $WORKER_TOKEN` when the token is set. Exempt from the per-IP rate limit.
+- **Dispatcher -> B2** — application key, SigV4, `user_agent_extra=b2ai-diffusers-lora-weights-hub`.
+- **Worker -> B2** — only presigned URLs: a GET for one adapter (`ADAPTER_URL_TTL_SECONDS`, default 300) and a PUT for one output key bound to `image/png` (`OUTPUT_URL_TTL_SECONDS`, default 600), issued at claim time.
+- **Browser -> B2** — presigned GETs for image previews and explorer downloads.
 
 ## Data Flows
 
-- **Upload**: Browser -> `POST /upload/presign` (API validates the declared file + signs a PUT) -> Browser PUTs bytes **directly to B2** -> `POST /upload/verify` (API HEADs + Range-sniffs the stored object) -> response
-- **List**: Browser -> `GET /files` -> service calls repo -> returns file list
-- **Download**: Browser -> `GET /files/{key}/download` -> service validates key -> repo generates presigned URL -> browser downloads
-- **Delete**: Browser -> `DELETE /files/{key}` -> service validates key -> repo deletes from B2
+- **Publish**: `POST /tenants/{t}/adapters` -> validate -> stream weight to B2 while hashing -> HEAD size check -> version manifest -> tenant manifest (last)
+- **Generate**: `POST /tenants/{t}/generations` -> resolver reads the tenant manifest (10 s cache, ETag revalidation) and the version manifest -> job row (fixed seed) in SQLite
+- **Claim**: worker `POST /worker/jobs/claim` (long poll up to 25 s) -> reap expired leases -> oldest queued job -> running, `attempt + 1`, lease -> presign weight GET and output PUT
+- **Run**: worker cache lookup or presigned download with sha256 check -> `load_lora_weights` -> generate -> `delete_adapters` -> presigned PUT -> `POST .../complete` -> dispatcher HEADs the output -> `succeeded` -> when the run is idle, `reports/<run-id>/adapters.json`
+- **Recovery**: no heartbeat until the lease ends -> next claim re-queues (same seed) -> another worker -> late completion from the old attempt 409
 
 ## Observability
 
-- Structured JSON logging on all requests with `request_id`
-- Request timing middleware (logs duration per request; also the catch-all that converts uncaught exceptions to a typed JSON 500)
-- `/metrics` endpoint (Prometheus format: request count, latency, upload count)
-- `/health` endpoint (B2 connectivity check)
+- Structured JSON logging (dispatcher and workers), with tenant and code on every rejection
+- `/metrics` (Prometheus format): request count and latency per route, `adapter_rejections_total{code=...}`
+- `/health`: B2 connectivity, base model, workers online
+- `/workers`: device, dtype, last seen, current job, cache entries and bytes per worker
+- `reports/<run-id>/adapters.json` in B2: per-job fetch, load, generate and unload times
 
 ## API Contract
 
@@ -158,6 +168,8 @@ still in step.
 | --- | --- | --- |
 | `DELETE /files-by-key` | `DeleteFileResponse` | `fileByKeyDelete` |
 | `DELETE /files/{key}` | `DeleteFileResponse` | `legacyFileDelete` |
+| `DELETE /tenants/{tenant_id}/adapters/{adapter}` | `DeleteAdapterResult` | `deleteAdapter` |
+| `DELETE /tenants/{tenant_id}/adapters/{adapter}/versions/{version}` | `DeleteAdapterResult` | `deleteAdapterVersion` |
 | `GET /files` | `FileMetadata[]` | `files` |
 | `GET /files-by-key/detail` | `FileMetadataDetail` | `fileByKeyDetail` |
 | `GET /files-by-key/download` | `FileUrlResponse` | `fileByKeyDownload` |
@@ -169,9 +181,31 @@ still in step.
 | `GET /files/stats` | `UploadStats` | `fileStats` |
 | `GET /files/stats/activity` | `DailyUploadCount[]` | `uploadActivity` |
 | `GET /health` | `HealthStatus` | `health` |
+| `GET /jobs` | `Job[]` | `jobs` |
+| `GET /jobs/{job_id}` | `Job` | `job` |
+| `GET /jobs/{job_id}/output` | `FileUrlResponse` | `jobOutput` |
+| `GET /library` | `LibraryEntry[]` | `library` |
 | `GET /metrics` | — | _server-only_ |
-| `POST /upload/presign` | `PresignUploadResponse` | `uploadPresign` |
-| `POST /upload/verify` | `FileUploadResponse` | `uploadVerify` |
+| `GET /runs` | `RunSummary[]` | `runs` |
+| `GET /runs/{run_id}` | `RunDetail` | `run` |
+| `GET /runs/{run_id}/report` | `AdapterReport` | `runReport` |
+| `GET /settings/server` | `ServerConfig` | `serverConfig` |
+| `GET /tenants` | `TenantSummary[]` | `tenants` |
+| `GET /tenants/{tenant_id}/adapters` | `AdapterSummary[]` | `adapters` |
+| `GET /tenants/{tenant_id}/adapters/{adapter}` | `AdapterDetail` | `adapter` |
+| `GET /tenants/{tenant_id}/manifest` | `TenantManifest` | `tenantManifest` |
+| `GET /workers` | `WorkerStatus[]` | `workers` |
+| `PATCH /tenants/{tenant_id}/adapters/{adapter}` | `AdapterDetail` | `updateAdapter` |
+| `POST /fixtures/publish` | `AdapterDetail[]` | `publishFixtures` |
+| `POST /runs/compare` | — | `compareAdapters` |
+| `POST /tenants/{tenant_id}/adapters` | — | `publishAdapter` |
+| `POST /tenants/{tenant_id}/adapters/{adapter}/versions/{version}/verify` | `VerifyResult` | `verifyAdapterVersion` |
+| `POST /tenants/{tenant_id}/generations` | — | `createGeneration` |
+| `POST /worker/jobs/{job_id}/complete` | `Job` | _server-only_ |
+| `POST /worker/jobs/{job_id}/fail` | `Job` | _server-only_ |
+| `POST /worker/jobs/{job_id}/heartbeat` | `HeartbeatAck` | _server-only_ |
+| `POST /worker/jobs/claim` | `ClaimResponse` | _server-only_ |
+| `POST /worker/register` | `WorkerAck` | _server-only_ |
 <!-- gen:end arch-api-contract -->
 
 ## Canonical Files
@@ -198,17 +232,20 @@ Generated — **never hand-edit**; change the source and re-run the command:
 - `packages/shared/src/generated/api-types.ts` — `pnpm gen:api`
 - `apps/web/src/lib/generated/api-routes.ts` — `pnpm gen:api`
 - `apps/web/src/lib/generated/query-keys.ts` — `pnpm gen:api`
-- The marker-delimited regions of this file, `AGENTS.md`, `README.md` and the 2 `infra/` runbooks — `pnpm gen:docs`
+- The marker-delimited regions of this file, `AGENTS.md`, `README.md` and the 0 `infra/` runbooks — `pnpm gen:docs`
 <!-- gen:end arch-canonical-files -->
 
 ## Core Features
 
 <!-- gen:begin arch-core-features -->
-- [File Upload](docs/features/file-upload.md) — drag-and-drop upload with real-time progress
-- [File Browser](docs/features/file-browser.md) — list, preview, download, delete files
-- [Dashboard](docs/features/dashboard.md) — stats cards, upload chart, recent uploads
-- [Metadata Extraction](docs/features/metadata-extraction.md) — image dimensions, EXIF, PDF info, checksums
-- [Settings](docs/features/settings.md) — theme plus labelled demo preference fields
+- [Adapter Registry](docs/features/adapter-registry.md) — publish, version, edit, verify and delete tenant LoRA adapters
+- [Adapter Serving](docs/features/adapter-serving.md) — tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
+- [Generate and Compare](docs/features/generate.md) — generate per tenant and adapter, compare adapters on one seed
+- [Runs and Reports](docs/features/runs-and-reports.md) — jobs, worker recovery and adapters.json timing reports
+- [Library](docs/features/library.md) — adapters, outputs and reports under the app prefix
+- [Bucket Explorer](docs/features/file-browser.md) — browse, preview, download and delete any object in the bucket
+- [Dashboard](docs/features/dashboard.md) — tenants, adapters, workers, cache hits and timings
+- [Settings](docs/features/settings.md) — theme, generate defaults and read-only server config
 <!-- gen:end arch-core-features -->
 
 ## References
@@ -217,6 +254,4 @@ Generated — **never hand-edit**; change the source and re-run the command:
 - [docs/SECURITY.md](docs/SECURITY.md) — security principles and implementation
 - [docs/RELIABILITY.md](docs/RELIABILITY.md) — reliability expectations
 - [AGENTS.md](AGENTS.md) — architectural invariants and agent instructions
-- [infra/vercel/README.md](infra/vercel/README.md) — Vercel deployment contract
-- [infra/railway/README.md](infra/railway/README.md) — Railway delivery contract
 <!-- gen:end arch-references -->
