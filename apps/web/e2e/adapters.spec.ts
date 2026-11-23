@@ -16,8 +16,16 @@ const ACME_ADAPTERS = [
   },
 ];
 
+// The page (127.0.0.1:3000) and the API (localhost:8000) are different origins,
+// so a fulfilled response needs CORS headers or the browser discards it.
+const CORS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
+  "access-control-allow-headers": "content-type",
+};
+
 function json(route: Route, body: unknown, status = 200) {
-  return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+  return route.fulfill({ status, headers: CORS, contentType: "application/json", body: JSON.stringify(body) });
 }
 
 async function mockApi(page: Page) {
@@ -25,6 +33,7 @@ async function mockApi(page: Page) {
     const url = new URL(route.request().url());
     const path = url.pathname;
     const method = route.request().method();
+    if (method === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
     if (path === "/health") return json(route, { status: "healthy", b2_connected: true, base_model: "sdxl", workers_online: 0 });
     if (path === "/tenants") return json(route, TENANTS);
     if (path === "/tenants/acme/adapters" && method === "GET") return json(route, ACME_ADAPTERS);
@@ -62,8 +71,8 @@ test("publish form validates before sending anything", async ({ page }) => {
   await page.goto("/adapters");
   await page.getByRole("button", { name: "Publish adapter" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByPlaceholder("pixel-art").fill("Bad Name");
-  await dialog.getByPlaceholder("v1").fill("1");
+  await dialog.getByPlaceholder("pixel-art", { exact: true }).fill("Bad Name");
+  await dialog.getByPlaceholder("v1", { exact: true }).fill("1");
   await dialog.getByRole("button", { name: "Publish" }).click();
   await expect(dialog.getByText("Lowercase letters, digits and hyphens (3-40 characters)")).toBeVisible();
   await expect(dialog.getByText("Use v1, v1.2 or v1.2.3")).toBeVisible();

@@ -8,6 +8,10 @@ import type { NextConfig } from "next";
 // without per-deployment tweaks.
 const nextConfig: NextConfig = {
   transpilePackages: ["@diffusers-multi-tenant-lora-serving/shared"],
+  // Playwright drives the dev server at 127.0.0.1 (see playwright.config.ts);
+  // Next only serves its dev resources to localhost unless the origin is listed,
+  // and without them the page never hydrates.
+  allowedDevOrigins: ["127.0.0.1"],
   images: {
     remotePatterns: [
       {
