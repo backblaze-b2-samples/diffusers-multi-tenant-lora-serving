@@ -21,7 +21,7 @@ import type {
   FileMetadata,
   FileMetadataDetail,
   FileUrlResponse,
-} from "@vibe-coding-starter-kit/shared";
+} from "@diffusers-multi-tenant-lora-serving/shared";
 import { qk } from "@/lib/generated/query-keys";
 
 // Query keys are GENERATED from the API contract (`pnpm gen:api`) and their

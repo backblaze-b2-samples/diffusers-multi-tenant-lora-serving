@@ -8,7 +8,7 @@ import type {
   HealthStatus,
   PresignUploadResponse,
   UploadStats,
-} from "@vibe-coding-starter-kit/shared";
+} from "@diffusers-multi-tenant-lora-serving/shared";
 
 import { API_CLIENT_ROUTES } from "./generated/api-routes";
 

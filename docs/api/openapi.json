@@ -552,8 +552,8 @@
     }
   },
   "info": {
-    "description": "Local API for the Vibe Coding Starter Kit template, providing file upload and management backed by Backblaze B2. This contract documents the template's local API, not a hosted public endpoint.",
-    "title": "Vibe Coding Starter Kit API",
+    "description": "Local API for the Diffusers Multi-Tenant LoRA Serving template, providing file upload and management backed by Backblaze B2. This contract documents the template's local API, not a hosted public endpoint.",
+    "title": "Diffusers Multi-Tenant LoRA Serving API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",

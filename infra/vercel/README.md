@@ -139,7 +139,7 @@ repo-root `vercel.json` and creates one Services project:
 
 Alongside `repository-url` and the `env` list, the button carries the
 presentation parameters the clone flow renders in its preview card:
-`project-name` and `repository-name` (both `vibe-coding-starter-kit`, so the cloned repo and
+`project-name` and `repository-name` (both `diffusers-multi-tenant-lora-serving`, so the cloned repo and
 the created Project get a readable default name), plus
 `demo-title`, `demo-description`, `demo-image`.
 

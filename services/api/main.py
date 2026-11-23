@@ -107,9 +107,9 @@ logger = logging.getLogger("api")
 
 # --- App setup ---
 
-API_TITLE = "Vibe Coding Starter Kit API"
+API_TITLE = "Diffusers Multi-Tenant LoRA Serving API"
 API_DESCRIPTION = (
-    "Local API for the Vibe Coding Starter Kit template, providing file upload "
+    "Local API for the Diffusers Multi-Tenant LoRA Serving template, providing file upload "
     "and management backed by Backblaze B2. This contract documents the "
     "template's local API, not a hosted public endpoint."
 )

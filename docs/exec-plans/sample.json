@@ -1,9 +1,9 @@
 {
   "$schema": "../../scripts/gen/sample.schema.json",
   "schema_version": 1,
-  "name": "Vibe Coding Starter Kit",
-  "slug": "vibe-coding-starter-kit",
-  "package_scope": "@vibe-coding-starter-kit",
+  "name": "Diffusers Multi-Tenant LoRA Serving",
+  "slug": "diffusers-multi-tenant-lora-serving",
+  "package_scope": "@diffusers-multi-tenant-lora-serving",
   "purpose": "A well-engineered full-stack foundation — dashboard, drag-and-drop upload and a file browser — with Backblaze B2 storage already wired in, so builders skip the boilerplate loop.",
   "tagline": "Stop wiring boilerplate and start building.",
   "primary_entity": { "schema": "FileMetadata", "singular": "file", "plural": "files" },
@@ -68,8 +68,8 @@
     { "name": "B2_PUBLIC_URL_BASE", "required": false, "secret": false, "note": "public object base URL, when the bucket is public" },
     { "name": "NEXT_PUBLIC_API_URL", "required": false, "secret": false, "note": "separate-origin deploys only; Next.js inlines it at build time" }
   ],
-  "attribution_token": "b2ai-oss-start",
-  "repo": { "org": "backblaze-b2-samples", "name": "vibe-coding-starter-kit" },
+  "attribution_token": "b2ai-diffusers-lora-weights-hub",
+  "repo": { "org": "backblaze-b2-samples", "name": "diffusers-multi-tenant-lora-serving" },
   "screenshots": [
     {
       "path": "docs/images/b2-starterkit-dashboard1.png",

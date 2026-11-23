@@ -1,13 +1,13 @@
 <!-- last_verified: 2026-08-12 -->
 <!-- gen:begin readme-header -->
-# Vibe Coding Starter Kit
+# Diffusers Multi-Tenant LoRA Serving
 
 Stop wiring boilerplate and start building. A well-engineered full-stack foundation — dashboard, drag-and-drop upload and a file browser — with Backblaze B2 storage already wired in, so builders skip the boilerplate loop.
 
 Built for developers and AI coding agents: the scaffolding, the storage
 wiring and the agent-facing docs are already done, so you start on your
 app's own features instead of rebuilding the same shell. Storage is
-**[Backblaze B2](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-oss-start)**, integrated through the S3-compatible API.
+**[Backblaze B2](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-diffusers-lora-weights-hub)**, integrated through the S3-compatible API.
 
 **What you get out of the box:**
 - Full-stack dashboard UI (Next.js 16, React 19, Tailwind v4, shadcn/ui, TanStack Query, Recharts)
@@ -36,7 +36,7 @@ app's own features instead of rebuilding the same shell. Storage is
 
 ## Quick Start
 
-You need: Node.js >= 20, pnpm >= 10, Python >= 3.12, and a free **[Backblaze B2 account](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-oss-start)**.
+You need: Node.js >= 20, pnpm >= 10, Python >= 3.12, and a free **[Backblaze B2 account](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-diffusers-lora-weights-hub)**.
 
 ### Start a new project
 
@@ -52,12 +52,12 @@ cd my-cool-app
 **Option 2: Clone and reinitialize**
 
 ```bash
-git clone https://github.com/backblaze-b2-samples/vibe-coding-starter-kit.git my-cool-app
+git clone https://github.com/backblaze-b2-samples/diffusers-multi-tenant-lora-serving.git my-cool-app
 cd my-cool-app
 rm -rf .git
 git init
 git add .
-git commit -m "Initial commit from vibe-coding-starter-kit"
+git commit -m "Initial commit from diffusers-multi-tenant-lora-serving"
 ```
 
 Either way you get a clean project with no upstream history — ready to push to your own repo and point your agent at it.
@@ -83,7 +83,7 @@ existing `.env`.
 
 **2. Add your B2 credentials**
 
-Open `.env` in your editor and keep it visible. Then head to the [Backblaze B2 dashboard](https://secure.backblaze.com/b2_buckets.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-oss-start) and:
+Open `.env` in your editor and keep it visible. Then head to the [Backblaze B2 dashboard](https://secure.backblaze.com/b2_buckets.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-diffusers-lora-weights-hub) and:
 
 <!-- gen:begin readme-credentials -->
 1. **Create a bucket** and an **application key** with `Read and Write`
@@ -137,11 +137,11 @@ operations, capacity, compliance, and support decisions.
 
 ## Why Backblaze B2?
 
-[Backblaze B2](https://www.backblaze.com/cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-oss-start) is the object storage this kit is built around — a deliberate default, not just a demo backend:
+[Backblaze B2](https://www.backblaze.com/cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-diffusers-lora-weights-hub) is the object storage this kit is built around — a deliberate default, not just a demo backend:
 
 - **S3-compatible API.** B2 speaks the S3 API, so the `boto3` calls, SDKs, and tooling you already use for AWS S3 work unchanged — you just point them at B2's endpoint. This kit uses the S3-compatible API throughout (isolated in `services/api/app/repo/`), so nothing is locked to a proprietary client.
 - **Built for data-heavy apps.** B2 storage runs at a fraction of hyperscaler pricing with generous free egress to many CDN and compute partners — what you want when an AI app accumulates uploads, datasets, model artifacts, and generated media.
-- **Free to start.** A [free B2 account](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-oss-start) is enough to run everything in this repo.
+- **Free to start.** A [free B2 account](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-diffusers-lora-weights-hub) is enough to run everything in this repo.
 
 ## Building Your App
 
@@ -266,7 +266,7 @@ from the same repo and share one origin (web at `/`, API under `/api`), so
 there's **no CORS and no second URL to wire up**.
 
 <!-- gen:begin readme-deploy-button -->
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbackblaze-b2-samples%2Fvibe-coding-starter-kit&project-name=vibe-coding-starter-kit&repository-name=vibe-coding-starter-kit&demo-title=Vibe%20Coding%20Starter%20Kit&demo-description=A%20well-engineered%20full-stack%20foundation%20%E2%80%94%20dashboard%2C%20drag-and-drop%20upload%20and%20a%20file%20browser%20%E2%80%94%20with%20Backblaze%20B2%20storage%20already%20wired%20in%2C%20so%20builders%20skip%20the%20boilerplate%20loop.&demo-image=https%3A%2F%2Fraw.githubusercontent.com%2Fbackblaze-b2-samples%2Fvibe-coding-starter-kit%2Fmain%2Fdocs%2Fimages%2Fb2-starterkit-dashboard1.png&env=B2_APPLICATION_KEY_ID%2CB2_APPLICATION_KEY%2CB2_BUCKET_NAME%2CB2_REGION&envDescription=B2%20credentials%20and%20bucket&envLink=https%3A%2F%2Fgithub.com%2Fbackblaze-b2-samples%2Fvibe-coding-starter-kit%2Fblob%2Fmain%2Finfra%2Fvercel%2FREADME.md)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbackblaze-b2-samples%2Fdiffusers-multi-tenant-lora-serving&project-name=diffusers-multi-tenant-lora-serving&repository-name=diffusers-multi-tenant-lora-serving&demo-title=Vibe%20Coding%20Starter%20Kit&demo-description=A%20well-engineered%20full-stack%20foundation%20%E2%80%94%20dashboard%2C%20drag-and-drop%20upload%20and%20a%20file%20browser%20%E2%80%94%20with%20Backblaze%20B2%20storage%20already%20wired%20in%2C%20so%20builders%20skip%20the%20boilerplate%20loop.&demo-image=https%3A%2F%2Fraw.githubusercontent.com%2Fbackblaze-b2-samples%2Fdiffusers-multi-tenant-lora-serving%2Fmain%2Fdocs%2Fimages%2Fb2-starterkit-dashboard1.png&env=B2_APPLICATION_KEY_ID%2CB2_APPLICATION_KEY%2CB2_BUCKET_NAME%2CB2_REGION&envDescription=B2%20credentials%20and%20bucket&envLink=https%3A%2F%2Fgithub.com%2Fbackblaze-b2-samples%2Fdiffusers-multi-tenant-lora-serving%2Fblob%2Fmain%2Finfra%2Fvercel%2FREADME.md)
 <!-- gen:end readme-deploy-button -->
 
 Set your B2 credentials and bucket, and you're live. Uploads go **directly from
@@ -304,8 +304,8 @@ preview/production, `/health` checks, and rollback — is in the
 
 ## FAQ
 
-**What is the Vibe Coding Starter Kit?**
-An open-source, full-stack template (Next.js 16 + FastAPI) with a pre-built dashboard UI, drag-and-drop file upload, and file browser, with [Backblaze B2](https://www.backblaze.com/cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-oss-start) cloud storage already integrated. You clone it, connect it to your own B2 bucket, then rebrand and extend it for your app.
+**What is the Diffusers Multi-Tenant LoRA Serving?**
+An open-source, full-stack template (Next.js 16 + FastAPI) with a pre-built dashboard UI, drag-and-drop file upload, and file browser, with [Backblaze B2](https://www.backblaze.com/cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-diffusers-lora-weights-hub) cloud storage already integrated. You clone it, connect it to your own B2 bucket, then rebrand and extend it for your app.
 
 **Is it free?**
 Yes. The code is MIT-licensed (see [License](#license)), and Backblaze B2 offers a free account to get started.
@@ -335,14 +335,14 @@ It deploys to Vercel as a single project — the web app and FastAPI API build f
 Local scripts are supported on macOS, Linux, and WSL2. Native Windows is not supported yet — use WSL2 on Windows.
 
 **Where do I get help or report bugs?**
-Report repository defects and feature requests through [GitHub Issues](https://github.com/backblaze-b2-samples/vibe-coding-starter-kit/issues). For B2 account, billing, service, or API help, use [Backblaze Support](https://www.backblaze.com/help).
+Report repository defects and feature requests through [GitHub Issues](https://github.com/backblaze-b2-samples/diffusers-multi-tenant-lora-serving/issues). For B2 account, billing, service, or API help, use [Backblaze Support](https://www.backblaze.com/help).
 
 ## Maintenance and support
 
 Backblaze maintains this open-source template/sample to help developers get
 started with B2. Production use is possible with caution and requires your own
 validation. Report repository defects and feature requests through
-[GitHub Issues](https://github.com/backblaze-b2-samples/vibe-coding-starter-kit/issues);
+[GitHub Issues](https://github.com/backblaze-b2-samples/diffusers-multi-tenant-lora-serving/issues);
 for B2 account, billing, service, or API help, use
 [Backblaze Support](https://www.backblaze.com/help). This template/sample is
 not covered by the Backblaze service level agreement, and no SLA is provided
