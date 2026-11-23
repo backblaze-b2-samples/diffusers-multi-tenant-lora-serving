@@ -9,10 +9,10 @@ Give an at-a-glance view of the serving system: tenants and adapters in B2, jobs
 - API: `GET /tenants`, `GET /jobs`, `GET /workers`
 
 ## Core Functions
-- `apps/web/src/components/dashboard/stats-cards.tsx` — tenants, adapter versions, jobs by state, workers online, cache hit rate
-- `apps/web/src/components/dashboard/timing-card.tsx` — stacked fetch / load / generate / unload ms for the latest succeeded jobs
-- `apps/web/src/components/dashboard/recent-jobs-table.tsx` — last 8 jobs with worker and cache result
-- `apps/web/src/lib/report-chart.ts` — `jobTimingRows`, `cacheHitRate`
+- `apps/web/src/components/dashboard/stats-cards.tsx`: tenants, adapter versions, jobs by state, workers online, cache hit rate
+- `apps/web/src/components/dashboard/timing-card.tsx`: stacked fetch / load / generate / unload ms for the latest succeeded jobs
+- `apps/web/src/components/dashboard/recent-jobs-table.tsx`: last 8 jobs with worker and cache result
+- `apps/web/src/lib/report-chart.ts`: `jobTimingRows`, `cacheHitRate`
 
 ## Canonical Files
 - `apps/web/src/components/dashboard/stats-cards.tsx`
@@ -28,7 +28,7 @@ Give an at-a-glance view of the serving system: tenants and adapters in B2, jobs
 
 ## Edge Cases
 - API unreachable -> `ErrorState` with retry instead of zeros
-- No adapter jobs yet -> cache hit rate shows "—"
+- No adapter jobs yet -> cache hit rate shows "-"
 
 ## UX States
 - Loading: skeleton values

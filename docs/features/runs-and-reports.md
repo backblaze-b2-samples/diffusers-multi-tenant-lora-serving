@@ -9,10 +9,10 @@ Group jobs into runs, recover a killed worker's job on another worker with the s
 - API: `GET /runs`, `GET /runs/{run_id}`, `GET /runs/{run_id}/report`, `GET /jobs`, `GET /jobs/{job_id}`, `GET /workers`
 
 ## Core Functions
-- `services/api/app/repo/jobs_db.py` — SQLite (WAL) job, run and worker tables; atomic claim; lease expiry
-- `services/api/app/service/jobs.py` — leases, heartbeats, stale-attempt rejection
-- `services/api/app/service/reports.py` — `build_report`, `maybe_write_report`
-- `services/api/app/service/runs.py` — run detail and report read
+- `services/api/app/repo/jobs_db.py`: SQLite (WAL) job, run and worker tables; atomic claim; lease expiry
+- `services/api/app/service/jobs.py`: leases, heartbeats, stale-attempt rejection
+- `services/api/app/service/reports.py`: `build_report`, `maybe_write_report`
+- `services/api/app/service/runs.py`: run detail and report read
 - `apps/web/src/components/runs/run-detail-view.tsx`, `apps/web/src/lib/report-chart.ts`
 
 ## Canonical Files

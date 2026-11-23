@@ -6,20 +6,20 @@
 <!-- gen:begin arch-components -->
 Serve many tenants' LoRA adapters from Backblaze B2 on one shared Diffusers base model, with stateless GPU workers that resolve each request through the tenant's manifest, fetch only that adapter through a short-lived presigned URL and a verified cache, and load and unload it per request.
 
-- **apps/web/** — Next.js 16, React 19, Tailwind v4, shadcn/ui, TanStack Query, Recharts
-  - Adapter Registry (`/adapters`) — publish, version, edit, verify and delete tenant LoRA adapters
-  - Generate and Compare (`/generate`) — generate per tenant and adapter, compare adapters on one seed
-  - Runs and Reports (`/runs`) — jobs, worker recovery and adapters.json timing reports
-  - Library (`/library`) — adapters, outputs and reports under the app prefix
-  - Bucket Explorer (`/files`) — browse, preview, download and delete any object in the bucket
-  - Dashboard (`/`) — tenants, adapters, workers, cache hits and timings
-  - Settings (`/settings`) — theme, generate defaults and read-only server config
-- **services/api/** — FastAPI, Python 3.12+, boto3, Pydantic v2, huggingface_hub, SQLite; workers: PyTorch, Diffusers, PEFT, httpx
+- **apps/web/**: Next.js 16, React 19, Tailwind v4, shadcn/ui, TanStack Query, Recharts
+  - Adapter Registry (`/adapters`): publish, version, edit, verify and delete tenant LoRA adapters
+  - Generate and Compare (`/generate`): generate per tenant and adapter, compare adapters on one seed
+  - Runs and Reports (`/runs`): jobs, worker recovery and adapters.json timing reports
+  - Library (`/library`): adapters, outputs and reports under the app prefix
+  - Bucket Explorer (`/files`): browse, preview, download and delete any object in the bucket
+  - Dashboard (`/`): tenants, adapters, workers, cache hits and timings
+  - Settings (`/settings`): theme, generate defaults and read-only server config
+- **services/api/**: FastAPI, Python 3.12+, boto3, Pydantic v2, huggingface_hub, SQLite; workers: PyTorch, Diffusers, PEFT, httpx
   - REST API for every operation the frontend consumes, exported to `docs/api/openapi.json`
   - Backblaze B2 (S3-compatible API) access isolated in the `repo/` layer
-  - Adapter Serving — tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
+  - Adapter Serving: tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
   - Structured JSON logging with request tracing, plus `/health` and Prometheus `/metrics`
-- **packages/shared/** — TypeScript types generated from the API contract by `pnpm gen:api`, consumed by `apps/web/` as a workspace dependency (pnpm workspaces)
+- **packages/shared/**: TypeScript types generated from the API contract by `pnpm gen:api`, consumed by `apps/web/` as a workspace dependency (pnpm workspaces)
 <!-- gen:end arch-components -->
 
 ## Backend Layering
@@ -39,15 +39,15 @@ Two process types share one contract:
 The dispatcher follows a strict layered architecture:
 
 ```
-types/     Pydantic models and identifier rules — no I/O
+types/     Pydantic models and identifier rules, no I/O
   |
-config/    Settings (pydantic-settings) — depends only on types
+config/    Settings (pydantic-settings): depends only on types
   |
 repo/      Data access: boto3 B2 client, adapter store, SQLite job DB, Hugging Face source
   |
-service/   Registry, resolver, jobs, reports, library — calls repo, returns types
+service/   Registry, resolver, jobs, reports, library, calls repo, returns types
   |
-runtime/   FastAPI routes — calls service, never repo directly
+runtime/   FastAPI routes, calls service, never repo directly
 ```
 
 Torch and Diffusers live only in `services/worker/`, so the dispatcher's test
@@ -89,11 +89,11 @@ services/api/
 
 ## Deployment
 
-- **Local** — `pnpm dev` runs the dispatcher (`localhost:8000`) and the web app
+- **Local**: `pnpm dev` runs the dispatcher (`localhost:8000`) and the web app
   (`localhost:3000`); `pnpm dev:workers` starts two workers (`w1`, `w2`, separate
   adapter caches). Workers run natively, not in Docker: MPS is not available
   inside containers.
-- **GPU hosts** — one dispatcher, any number of workers pointed at it with
+- **GPU hosts**: one dispatcher, any number of workers pointed at it with
   `API_URL` and a shared `WORKER_TOKEN`. There is no serverless target, so the
   sample ships no Vercel or Railway runbook (`deployment_targets` is empty).
 
@@ -102,7 +102,7 @@ External provisioning and deployment remain explicit user-approved actions.
 ## Data Stores
 
 <!-- gen:begin arch-data-stores -->
-- **Backblaze B2 (S3-compatible API)** — the only data store; there is no application database
+- **Backblaze B2 (S3-compatible API)**: the only data store; there is no application database
   - Every object this app writes lives under the `lora-serving/` key prefix of one bucket
   - Listing, per-key metadata and presigned URLs all come from the S3 surface below
   - The primary entity is `AdapterDetail`; one adapter is one object
@@ -111,25 +111,25 @@ External provisioning and deployment remain explicit user-approved actions.
 ## External Services
 
 <!-- gen:begin arch-external-services -->
-- **Backblaze B2 (S3-compatible API)** — reached only through `services/api/app/repo/`, using:
-  - `upload_fileobj / put_object` — store adapter weights, manifests and run reports
-  - `head_object` — check weight and output sizes, and the /health probe
-  - `get_object` — read manifests and reports, and re-read weights to verify sha256
-  - `list_objects_v2` — discover tenants and back the Library and bucket explorer
-  - `presigned GET` — workers fetch one adapter without credentials; UI image previews
-  - `presigned PUT` — workers upload generated images without credentials
-  - `delete_object / delete_objects` — delete an adapter or version inside its own prefix, and explorer deletes
+- **Backblaze B2 (S3-compatible API)**: reached only through `services/api/app/repo/`, using:
+  - `upload_fileobj / put_object`: store adapter weights, manifests and run reports
+  - `head_object`: check weight and output sizes, and the /health probe
+  - `get_object`: read manifests and reports, and re-read weights to verify sha256
+  - `list_objects_v2`: discover tenants and back the Library and bucket explorer
+  - `presigned GET`: workers fetch one adapter without credentials; UI image previews
+  - `presigned PUT`: workers upload generated images without credentials
+  - `delete_object / delete_objects`: delete an adapter or version inside its own prefix, and explorer deletes
 <!-- gen:end arch-external-services -->
 
 ## Trust Boundaries
 
 See [docs/SECURITY.md](docs/SECURITY.md) for full security documentation.
 
-- **Browser -> dispatcher** — CORS-restricted; `CORSMiddleware` is outermost so error responses keep their headers. No authentication: the tenant in the path is trusted as given; production puts an authenticating gateway in front.
-- **Worker -> dispatcher** — `/worker/*` routes; `Authorization: Bearer $WORKER_TOKEN` when the token is set. Exempt from the per-IP rate limit.
-- **Dispatcher -> B2** — application key, SigV4, `user_agent_extra=b2ai-diffusers-lora-weights-hub`.
-- **Worker -> B2** — only presigned URLs: a GET for one adapter (`ADAPTER_URL_TTL_SECONDS`, default 300) and a PUT for one output key bound to `image/png` (`OUTPUT_URL_TTL_SECONDS`, default 600), issued at claim time.
-- **Browser -> B2** — presigned GETs for image previews and explorer downloads.
+- **Browser -> dispatcher**: CORS-restricted; `CORSMiddleware` is outermost so error responses keep their headers. No authentication: the tenant in the path is trusted as given; production puts an authenticating gateway in front.
+- **Worker -> dispatcher**: `/worker/*` routes; `Authorization: Bearer $WORKER_TOKEN` when the token is set. Exempt from the per-IP rate limit.
+- **Dispatcher -> B2**: application key, SigV4, `user_agent_extra=b2ai-diffusers-lora-weights-hub`.
+- **Worker -> B2**: only presigned URLs: a GET for one adapter (`ADAPTER_URL_TTL_SECONDS`, default 300) and a PUT for one output key bound to `image/png` (`OUTPUT_URL_TTL_SECONDS`, default 600), issued at claim time.
+- **Browser -> B2**: presigned GETs for image previews and explorer downloads.
 
 ## Data Flows
 
@@ -159,7 +159,7 @@ See [docs/SECURITY.md](docs/SECURITY.md) for full security documentation.
 The FastAPI routers and Pydantic models are the single source of truth. The
 frontend's `API_CLIENT_ROUTES` registry, the `qk` query-key factory and the
 shared TypeScript types are **generated** from the exported artifact by
-`pnpm gen:api`, so the client cannot drift from the backend — there is no
+`pnpm gen:api`, so the client cannot drift from the backend, there is no
 hand-written copy left to disagree. The two contract tests are kept as a
 belt-and-braces check that the generated files and the committed artifact are
 still in step.
@@ -185,7 +185,7 @@ still in step.
 | `GET /jobs/{job_id}` | `Job` | `job` |
 | `GET /jobs/{job_id}/output` | `FileUrlResponse` | `jobOutput` |
 | `GET /library` | `LibraryEntry[]` | `library` |
-| `GET /metrics` | — | _server-only_ |
+| `GET /metrics` | - | _server-only_ |
 | `GET /runs` | `RunSummary[]` | `runs` |
 | `GET /runs/{run_id}` | `RunDetail` | `run` |
 | `GET /runs/{run_id}/report` | `AdapterReport` | `runReport` |
@@ -197,10 +197,10 @@ still in step.
 | `GET /workers` | `WorkerStatus[]` | `workers` |
 | `PATCH /tenants/{tenant_id}/adapters/{adapter}` | `AdapterDetail` | `updateAdapter` |
 | `POST /fixtures/publish` | `AdapterDetail[]` | `publishFixtures` |
-| `POST /runs/compare` | — | `compareAdapters` |
-| `POST /tenants/{tenant_id}/adapters` | — | `publishAdapter` |
+| `POST /runs/compare` | - | `compareAdapters` |
+| `POST /tenants/{tenant_id}/adapters` | - | `publishAdapter` |
 | `POST /tenants/{tenant_id}/adapters/{adapter}/versions/{version}/verify` | `VerifyResult` | `verifyAdapterVersion` |
-| `POST /tenants/{tenant_id}/generations` | — | `createGeneration` |
+| `POST /tenants/{tenant_id}/generations` | - | `createGeneration` |
 | `POST /worker/jobs/{job_id}/complete` | `Job` | _server-only_ |
 | `POST /worker/jobs/{job_id}/fail` | `Job` | _server-only_ |
 | `POST /worker/jobs/{job_id}/heartbeat` | `HeartbeatAck` | _server-only_ |
@@ -211,7 +211,7 @@ still in step.
 ## Canonical Files
 
 <!-- gen:begin arch-canonical-files -->
-Hand-written — this is the file to edit:
+Hand-written, this is the file to edit:
 
 - Layered API handler: `services/api/app/runtime/`
 - Service orchestration: `services/api/app/service/`
@@ -220,38 +220,38 @@ Hand-written — this is the file to edit:
 - Config (pydantic-settings): `services/api/app/config/settings.py`
 - Structural tests: `services/api/tests/test_structure.py`
 - OpenAPI exporter: `services/api/scripts/export_openapi.py`
-- Frontend API client — error policy, transport, fallback: `apps/web/src/lib/api-client.ts`
-- Frontend data layer — caching, invalidation, polling: `apps/web/src/lib/queries.ts`
+- Frontend API client, error policy, transport, fallback: `apps/web/src/lib/api-client.ts`
+- Frontend data layer, caching, invalidation, polling: `apps/web/src/lib/queries.ts`
 - Shared type barrel: `packages/shared/src/types.ts`
 - Generator policy: `scripts/gen/api-gen.config.json`
 - Sample manifest behind the generated docs: `docs/exec-plans/sample.json`
 
-Generated — **never hand-edit**; change the source and re-run the command:
+Generated, **never hand-edit**; change the source and re-run the command:
 
-- `docs/api/openapi.json` — `pnpm contract:export` (source: the routers and models)
-- `packages/shared/src/generated/api-types.ts` — `pnpm gen:api`
-- `apps/web/src/lib/generated/api-routes.ts` — `pnpm gen:api`
-- `apps/web/src/lib/generated/query-keys.ts` — `pnpm gen:api`
-- The marker-delimited regions of this file, `AGENTS.md`, `README.md` and the 0 `infra/` runbooks — `pnpm gen:docs`
+- `docs/api/openapi.json`: `pnpm contract:export` (source: the routers and models)
+- `packages/shared/src/generated/api-types.ts`: `pnpm gen:api`
+- `apps/web/src/lib/generated/api-routes.ts`: `pnpm gen:api`
+- `apps/web/src/lib/generated/query-keys.ts`: `pnpm gen:api`
+- The marker-delimited regions of this file, `AGENTS.md`, `README.md` and the 0 `infra/` runbooks, `pnpm gen:docs`
 <!-- gen:end arch-canonical-files -->
 
 ## Core Features
 
 <!-- gen:begin arch-core-features -->
-- [Adapter Registry](docs/features/adapter-registry.md) — publish, version, edit, verify and delete tenant LoRA adapters
-- [Adapter Serving](docs/features/adapter-serving.md) — tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
-- [Generate and Compare](docs/features/generate.md) — generate per tenant and adapter, compare adapters on one seed
-- [Runs and Reports](docs/features/runs-and-reports.md) — jobs, worker recovery and adapters.json timing reports
-- [Library](docs/features/library.md) — adapters, outputs and reports under the app prefix
-- [Bucket Explorer](docs/features/file-browser.md) — browse, preview, download and delete any object in the bucket
-- [Dashboard](docs/features/dashboard.md) — tenants, adapters, workers, cache hits and timings
-- [Settings](docs/features/settings.md) — theme, generate defaults and read-only server config
+- [Adapter Registry](docs/features/adapter-registry.md): publish, version, edit, verify and delete tenant LoRA adapters
+- [Adapter Serving](docs/features/adapter-serving.md): tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
+- [Generate and Compare](docs/features/generate.md): generate per tenant and adapter, compare adapters on one seed
+- [Runs and Reports](docs/features/runs-and-reports.md): jobs, worker recovery and adapters.json timing reports
+- [Library](docs/features/library.md): adapters, outputs and reports under the app prefix
+- [Bucket Explorer](docs/features/file-browser.md): browse, preview, download and delete any object in the bucket
+- [Dashboard](docs/features/dashboard.md): tenants, adapters, workers, cache hits and timings
+- [Settings](docs/features/settings.md): theme, generate defaults and read-only server config
 <!-- gen:end arch-core-features -->
 
 ## References
 
 <!-- gen:begin arch-references -->
-- [docs/SECURITY.md](docs/SECURITY.md) — security principles and implementation
-- [docs/RELIABILITY.md](docs/RELIABILITY.md) — reliability expectations
-- [AGENTS.md](AGENTS.md) — architectural invariants and agent instructions
+- [docs/SECURITY.md](docs/SECURITY.md): security principles and implementation
+- [docs/RELIABILITY.md](docs/RELIABILITY.md): reliability expectations
+- [AGENTS.md](AGENTS.md): architectural invariants and agent instructions
 <!-- gen:end arch-references -->

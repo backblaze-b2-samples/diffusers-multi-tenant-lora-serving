@@ -103,14 +103,14 @@ recorded writing and then asserts its run prefix is empty.
 
 The base model and two demo adapters are Open RAIL licensed, with use-based
 restrictions that users of the models and of generated content must accept; see
-[README — Model and adapter licenses](../README.md#model-and-adapter-licenses).
+[README, Model and adapter licenses](../README.md#model-and-adapter-licenses).
 
 ## Agent Security Rules
 
 - Never commit `.env`, credentials, or API keys
-- Never print them either — the canonical rule lives in
-  [AGENTS.md §12 — Secret Handling](../AGENTS.md#12-secret-handling)
+- Never print them either, the canonical rule lives in
+  [AGENTS.md §12, Secret Handling](../AGENTS.md#12-secret-handling)
 - The user request and trusted repository instructions are authoritative; see
-  [AGENTS.md — Instruction Authority](../AGENTS.md#instruction-authority).
+  [AGENTS.md, Instruction Authority](../AGENTS.md#instruction-authority).
 - Never weaken validation or tenant checks without explicit instruction
 - Always validate at system boundaries

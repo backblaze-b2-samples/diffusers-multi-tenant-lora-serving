@@ -82,7 +82,7 @@ def check_connectivity() -> bool:
 def _list_all_objects(prefix: str = "") -> list[dict]:
     """Every object under `prefix`, via the shared single-flight listing cache.
 
-    The returned list is shared and cached — callers must treat it as read-only
+    The returned list is shared and cached, callers must treat it as read-only
     (never sort/mutate in place). Raises RuntimeError on S3 failure.
     """
     return cached_listing(prefix, _fetch_all_objects)
@@ -122,7 +122,7 @@ def list_files(prefix: str = "") -> list[FileMetadata]:
     """List all files under `prefix`.
 
     Paginates the whole prefix so callers see every object, not just the first
-    1000. Order is unspecified — callers that need newest-first sort themselves
+    1000. Order is unspecified, callers that need newest-first sort themselves
     (see `service.files.get_files`). Raises RuntimeError on S3 failure.
     """
     files: list[FileMetadata] = []
@@ -192,7 +192,7 @@ def get_presigned_url(
 
     `disposition` selects the `Content-Disposition` the signed response will
     carry. "attachment" (the default) makes browsers save the file; "inline"
-    lets them render it in place, which the preview modal needs — an
+    lets them render it in place, which the preview modal needs, an
     `attachment` response makes an `<iframe>` PDF preview impossible because
     the browser starts a download instead of painting the document.
     Raises ValueError for any other value.

@@ -32,7 +32,7 @@ import { API_CLIENT_ROUTES } from "./generated/api-routes";
 // `lib/api-client`, and that import path should not change just because the
 // registry moved behind a generator.
 //
-// Everything else in this file is hand-written on purpose — error policy
+// Everything else in this file is hand-written on purpose, error policy
 // (including the API's stable error `code`), base URL resolution, the
 // legacy-route fallback, the CORS diagnostics and the multipart publish
 // request are per-app judgement the contract does not describe. See
@@ -40,7 +40,7 @@ import { API_CLIENT_ROUTES } from "./generated/api-routes";
 export { API_CLIENT_ROUTES };
 
 // Single-origin deploys (Vercel `services`: one project serving web + API) put
-// the API under /api on the same origin, so no NEXT_PUBLIC_API_URL is needed —
+// the API under /api on the same origin, so no NEXT_PUBLIC_API_URL is needed,
 // a production build with it unset defaults to the relative "/api". An explicit
 // NEXT_PUBLIC_API_URL still wins (two-project / separate-origin deploys). Local
 // dev (NODE_ENV !== "production") falls back to the dev API port.
@@ -60,7 +60,7 @@ export class ApiError extends Error {
     this.name = "ApiError";
   }
 
-  /** True for 408, 429, 500, 502, 503, 504 — worth retrying. */
+  /** True for 408, 429, 500, 502, 503, 504, worth retrying. */
   get isRetryable(): boolean {
     return [408, 429, 500, 502, 503, 504].includes(this.status);
   }
@@ -78,16 +78,16 @@ export class ApiError extends Error {
  * Build the right status-0 ApiError for a thrown fetch().
  *
  * fetch() rejects with a TypeError for genuinely-offline/DNS failures AND for
- * responses the browser refused to expose — most notably a cross-origin 500
+ * responses the browser refused to expose, most notably a cross-origin 500
  * that shipped without `Access-Control-Allow-Origin`. We can't tell those apart
  * from the error object, but `navigator.onLine === false` reliably means the
  * device has no connectivity. Anything else reached the network, so the most
- * likely cause is the server erroring with a CORS-blocked response — point the
+ * likely cause is the server erroring with a CORS-blocked response, point the
  * developer at the API logs instead of blaming their connection.
  */
 function networkError(): ApiError {
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
-    return new ApiError("You appear to be offline — check your connection", 0);
+    return new ApiError("You appear to be offline, check your connection", 0);
   }
   return new ApiError(
     "Couldn't reach the API, or the server returned an error the browser blocked (CORS). Check the API logs.",
@@ -213,7 +213,7 @@ export async function getFile(key: string) {
 /**
  * Rich metadata (checksums, image/PDF fields) for an already-stored file.
  * The server recomputes this on demand by downloading the object, so it's a
- * heavier call than getFile — fetch it lazily (only when the user asks to see
+ * heavier call than getFile, fetch it lazily (only when the user asks to see
  * details). No legacy path fallback: this endpoint is new, so an older backend
  * wouldn't serve it under any route.
  */
@@ -230,7 +230,7 @@ export async function getDownloadUrl(key: string) {
   );
 }
 
-/** Preview-only presigned URL — does NOT increment the download counter. */
+/** Preview-only presigned URL, does NOT increment the download counter. */
 export async function getPreviewUrl(key: string) {
   return apiFetchWithLegacyFallback<FileUrlResponse>(
     `${API_CLIENT_ROUTES.fileByKeyPreview.path}?${fileKeyQuery(key)}`,
@@ -244,7 +244,7 @@ export async function deleteFile(key: string) {
     () => legacyFileKeyRoute(API_CLIENT_ROUTES.legacyFileDelete.path, key),
     {
       // Derived from the registry so the verb the contract test checks is the
-      // verb actually sent — a hardcoded "DELETE" could silently disagree.
+      // verb actually sent, a hardcoded "DELETE" could silently disagree.
       method: API_CLIENT_ROUTES.fileByKeyDelete.method.toUpperCase(),
     }
   );

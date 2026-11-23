@@ -10,13 +10,13 @@ Set the theme and the defaults the Generate and Compare forms start from, and sh
 - Storage: `next-themes`' own key for Theme; `localStorage` (`diffusers-multi-tenant-lora-serving-demo-preferences`) for default steps and size. No server-side preferences store
 
 ## Core Functions
-- `apps/web/src/lib/theme-preference.ts` — `THEME_OPTIONS`, `DEFAULT_THEME`, `normalizeTheme()`
-- `apps/web/src/lib/demo-preferences.ts` — `STEP_OPTIONS`, `SIZE_OPTIONS`, `loadDemoPreferences()`, `saveDemoPreferences()`
-- `apps/web/src/lib/use-demo-preferences.ts` — the stored defaults as a hook (server render uses the built-in defaults)
-- `apps/web/src/lib/settings-schema.ts` — zod rules for the form
-- `apps/web/src/components/settings/settings-form.tsx` — Theme radio group, Default steps and Default size selects
-- `apps/web/src/components/settings/server-config-card.tsx` — base model, app prefix, URL lifetimes, job lease, workers online, license allowlist
-- `services/api/app/runtime/server_settings.py` — `GET /settings/server`
+- `apps/web/src/lib/theme-preference.ts`: `THEME_OPTIONS`, `DEFAULT_THEME`, `normalizeTheme()`
+- `apps/web/src/lib/demo-preferences.ts`: `STEP_OPTIONS`, `SIZE_OPTIONS`, `loadDemoPreferences()`, `saveDemoPreferences()`
+- `apps/web/src/lib/use-demo-preferences.ts`: the stored defaults as a hook (server render uses the built-in defaults)
+- `apps/web/src/lib/settings-schema.ts`: zod rules for the form
+- `apps/web/src/components/settings/settings-form.tsx`: Theme radio group, Default steps and Default size selects
+- `apps/web/src/components/settings/server-config-card.tsx`: base model, app prefix, URL lifetimes, job lease, workers online, license allowlist
+- `services/api/app/runtime/server_settings.py`: `GET /settings/server`
 
 ## Canonical Files
 - `apps/web/src/components/settings/settings-form.tsx` (selector for every finite-option field)

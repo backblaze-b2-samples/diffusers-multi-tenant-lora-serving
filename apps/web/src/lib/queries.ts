@@ -60,9 +60,9 @@ import { isTerminal } from "@/lib/job-state";
 // cannot answer. Generated keys carry query parameters only; hooks for routes
 // with path parameters append those ids to the generated base key.
 //
-// The caching policy below — staleTime, refetchInterval, retry, `enabled`
+// The caching policy below, staleTime, refetchInterval, retry, `enabled`
 // gating, polling while jobs are active, the query-vs-mutation choice, and the
-// cache surgery in `dropDeletedFileFromCache` — is hand-written on purpose and
+// cache surgery in `dropDeletedFileFromCache`: is hand-written on purpose and
 // is never generated.
 export { qk };
 
@@ -73,7 +73,7 @@ export const ACTIVE_POLL_MS = 2_000;
 
 /**
  * Gate a query on something being open/visible. Deliberately the only option we
- * expose, so callers can't drift the caching policy per call site — the ⌘K
+ * expose, so callers can't drift the caching policy per call site, the ⌘K
  * palette reuses `useFiles`' key (and therefore its cache) instead of fetching
  * its own private, smaller list.
  */
@@ -104,7 +104,7 @@ export function useUploadActivity(days = 7) {
   });
 }
 
-// Presigned preview URL — only fetched when `enabled` is true (e.g., when
+// Presigned preview URL, only fetched when `enabled` is true (e.g., when
 // the dialog opens for a specific file). Kept short-lived (60s) because
 // the URL itself has a presigned expiry and is cheap to regenerate.
 export function usePreviewUrl(key: string | undefined, enabled: boolean) {
@@ -118,7 +118,7 @@ export function usePreviewUrl(key: string | undefined, enabled: boolean) {
 
 // Core details (checksums, image size) for an already-stored file. The server
 // recomputes them on demand (a full object download), so they are only fetched
-// when `enabled` — the preview dialog is open AND the user expands details.
+// when `enabled`: the preview dialog is open AND the user expands details.
 export function useFileDetail(key: string | undefined, enabled: boolean) {
   return useQuery<FileMetadataDetail, ApiError>({
     queryKey: qk.detail(key ?? ""),

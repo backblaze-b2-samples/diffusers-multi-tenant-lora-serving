@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     b2_region: str = ""
     b2_public_url_base: str = ""
 
-    # Slug for anything that must be namespaced per app — today the B2 CORS
+    # Slug for anything that must be namespaced per app, today the B2 CORS
     # rule ID in scripts/setup_b2_cors.py. Python cannot import the frontend's
     # app-config.ts, so this is the backend's declaration of the same slug:
     # keep it equal to the package name, and derive identifiers from it rather
@@ -42,15 +42,15 @@ class Settings(BaseSettings):
 
     api_port: int = 8000
     # Interactive API docs (/docs, /redoc, /openapi.json). On by default for
-    # local dev and starter-kit exploration; set false to hide the full API
+    # local dev and exploring this sample's API; set false to hide the full API
     # surface in production.
     enable_docs: bool = True
-    # Explicit allowlist by default — covers Next on :3000 and the
+    # Explicit allowlist by default, covers Next on :3000 and the
     # fallback :3001 it picks if 3000 is busy. Production deploys should
     # override with the exact frontend origin.
     api_cors_origins: str = "http://localhost:3000,http://localhost:3001"
     # Optional dev-only escape hatch: a regex that matches additional
-    # allowed origins. Empty by default — set this to e.g.
+    # allowed origins. Empty by default, set this to e.g.
     # `^http://localhost:\d+$` to accept any localhost port without
     # listing each one. NEVER ship this to production.
     api_cors_origin_regex: str = ""
@@ -103,18 +103,18 @@ class Settings(BaseSettings):
     # served *immediately* while a background thread refreshes them
     # (stale-while-revalidate), so only the very first scan can make a user
     # wait. Uploads and deletes invalidate the cache outright, so the app's own
-    # writes are never served stale — only bucket changes made elsewhere can lag
+    # writes are never served stale, only bucket changes made elsewhere can lag
     # by up to this TTL.
     list_cache_ttl_seconds: float = 300.0
     # Scan the bucket once at startup so the first page view doesn't pay for the
     # cold scan. Set false for offline dev or when startup must not touch B2.
     warm_list_cache_on_startup: bool = True
 
-    # Rate limiting (per client IP, per 60s window). In-process per replica —
+    # Rate limiting (per client IP, per 60s window). In-process per replica,
     # documented in docs/RELIABILITY.md; horizontal scaling needs a shared
     # store (e.g. Redis). Writes/downloads get the tighter cap.
     rate_limit_per_minute: int = 120
-    # Covers uploads, deletes, downloads and previews — kept generous enough
+    # Covers uploads, deletes, downloads and previews, kept generous enough
     # that a normal browsing/upload session doesn't trip it.
     rate_limit_write_per_minute: int = 60
 
@@ -126,13 +126,13 @@ class Settings(BaseSettings):
     # --reload` watches in dev, so a counter file there means every download
     # writes into the reloader's watch tree. Today uvicorn only restarts for
     # `*.py`, so the writes surface as misleading "N changes detected" log noise
-    # on every download — but a single added `--reload-include` would turn a
+    # on every download, but a single added `--reload-include` would turn a
     # normal user action into an API restart that drops in-flight requests.
     download_count_file: str = ".data/download_count.json"
 
     # `extra: ignore` because the repo-root env file is shared: it also carries
-    # frontend and script variables, and — after the rename to the standard B2
-    # names — an older file still carrying the previous ones. pydantic-settings
+    # frontend and script variables, and, after the rename to the standard B2
+    # names, an older file still carrying the previous ones. pydantic-settings
     # forbids unknown keys by default, which turns any of those into a
     # ValidationError at import time. That would replace main.py's actionable
     # "missing required B2 configuration" startup message with a traceback, so

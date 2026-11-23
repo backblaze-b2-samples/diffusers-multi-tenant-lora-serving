@@ -52,7 +52,7 @@ export function RunDetailView({ runId }: { runId: string }) {
                 ["Generate p50", `${summary.generate_ms_p50} ms`],
                 ["Retried jobs", String(summary.retried_jobs)],
                 ["Failed", String(summary.failed)],
-                ["Devices", report.data!.device_summary.join(", ") || "—"],
+                ["Devices", report.data!.device_summary.join(", ") || "-"],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-xs text-muted-foreground">{k}</dt>

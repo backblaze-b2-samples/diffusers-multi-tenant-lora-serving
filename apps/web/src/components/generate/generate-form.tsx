@@ -100,7 +100,7 @@ export function GenerateForm({ tenantId, adapter }: GenerateFormProps) {
           <div className="space-y-1.5">
             <Label>Version</Label>
             <Select value={version || currentVersion} onValueChange={setVersion} disabled={adapterName === BASE}>
-              <SelectTrigger aria-label="Version"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger aria-label="Version"><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent>
                 {versions.map((v) => <SelectItem key={v.version} value={v.version}>{v.version}</SelectItem>)}
               </SelectContent>

@@ -31,7 +31,7 @@ export function StatsCards() {
     { title: "Adapter versions", value: String(t.reduce((n, x) => n + x.version_count, 0)), hint: "in B2", icon: Layers },
     { title: "Jobs", value: `${count("succeeded")} ok`, hint: `${count("queued")} queued · ${count("running")} running · ${count("failed")} failed`, icon: Activity },
     { title: "Workers online", value: String((workers.data ?? []).filter((w) => w.online).length), hint: `${(workers.data ?? []).length} registered`, icon: Cpu },
-    { title: "Cache hit rate", value: rate === null ? "—" : `${Math.round(rate * 100)}%`, hint: "adapter jobs served from a worker's cache", icon: Database },
+    { title: "Cache hit rate", value: rate === null ? "-" : `${Math.round(rate * 100)}%`, hint: "adapter jobs served from a worker's cache", icon: Database },
   ];
   const loading = tenants.isLoading || jobs.isLoading;
   return (

@@ -10,14 +10,14 @@ Serve every tenant's adapters from one shared base model on stateless workers: r
 - Job: `services/worker` (`pnpm worker`, `pnpm dev:workers`)
 
 ## Core Functions
-- `services/api/app/service/resolver.py` — tenant-scoped resolution and isolation checks
-- `services/api/app/service/jobs.py` — enqueue, claim (presigns at claim time), heartbeat, complete, fail, lease reaper
-- `services/api/app/runtime/worker_protocol.py` — worker routes, `WORKER_TOKEN` bearer check
-- `services/worker/worker/runner.py` — one job end to end; unload in `finally`
-- `services/worker/worker/fetch.py` — streamed download with sha256 and size check
-- `services/worker/worker/cache.py` — `<cache>/<tenant>/<sha256>.safetensors`, re-hash on hit, LRU eviction
-- `services/worker/worker/pipeline.py` — `load_lora_weights`, `set_adapters`, generate, `delete_adapters`, `get_list_adapters`
-- `services/worker/worker/device.py` — CUDA, then MPS, then CPU
+- `services/api/app/service/resolver.py`: tenant-scoped resolution and isolation checks
+- `services/api/app/service/jobs.py`: enqueue, claim (presigns at claim time), heartbeat, complete, fail, lease reaper
+- `services/api/app/runtime/worker_protocol.py`: worker routes, `WORKER_TOKEN` bearer check
+- `services/worker/worker/runner.py`: one job end to end; unload in `finally`
+- `services/worker/worker/fetch.py`: streamed download with sha256 and size check
+- `services/worker/worker/cache.py`: `<cache>/<tenant>/<sha256>.safetensors`, re-hash on hit, LRU eviction
+- `services/worker/worker/pipeline.py`: `load_lora_weights`, `set_adapters`, generate, `delete_adapters`, `get_list_adapters`
+- `services/worker/worker/device.py`: CUDA, then MPS, then CPU
 
 ## Canonical Files
 - Isolation rules: `services/api/app/service/resolver.py`

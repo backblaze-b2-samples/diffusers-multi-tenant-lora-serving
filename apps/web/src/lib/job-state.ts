@@ -27,5 +27,5 @@ export function cacheLabel(cache: Job["cache"]): string {
   if (cache === "hit") return "cache hit";
   if (cache === "miss") return "cache miss";
   if (cache === "none") return "base model";
-  return "—";
+  return "-";
 }

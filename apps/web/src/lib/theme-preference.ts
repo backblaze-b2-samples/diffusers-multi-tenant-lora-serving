@@ -2,7 +2,7 @@
  * The one preference this app genuinely honours.
  *
  * `next-themes` owns and persists the theme, so there is nothing to store here
- * — only the option list and the coercion the Settings form needs.
+ *, only the option list and the coercion the Settings form needs.
  *
  * The rest of the Settings page (display name, bio, notification/quota
  * preferences, default file view) is an intentional demonstration of what an

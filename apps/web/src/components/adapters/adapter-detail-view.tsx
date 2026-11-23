@@ -112,7 +112,7 @@ export function AdapterDetailView({ tenantId, adapter }: { tenantId: string; ada
                         <Link className="hover:underline" href={`/runs/${j.run_id}`}>{j.job_id}</Link>
                       </TableCell>
                       <TableCell><JobStateBadge state={j.state} /></TableCell>
-                      <TableCell className="text-xs">{j.worker_id ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{j.worker_id ?? "-"}</TableCell>
                       <TableCell className="text-xs">{cacheLabel(j.cache)}</TableCell>
                     </TableRow>
                   ))}

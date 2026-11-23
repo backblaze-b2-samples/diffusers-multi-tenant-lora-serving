@@ -45,7 +45,7 @@ export function RunsTable() {
                     <Badge variant={r.state === "active" ? "secondary" : "outline"}>{r.state}</Badge>
                   </TableCell>
                   <TableCell className="font-mono text-[11px] text-muted-foreground">
-                    {r.report_key ? "adapters.json" : "—"}
+                    {r.report_key ? "adapters.json" : "-"}
                   </TableCell>
                 </TableRow>
               ))}

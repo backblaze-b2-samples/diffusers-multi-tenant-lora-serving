@@ -9,8 +9,8 @@ Show everything this app wrote under `APP_PREFIX`, grouped the way the app think
 - API: `GET /library?tenant_id=&kind=`, `GET /files-by-key/preview` for image tiles
 
 ## Core Functions
-- `services/api/app/service/library.py` — lists `adapters/`, `outputs/`, `reports/` under the prefix and classifies each key
-- `apps/web/src/components/library/library-view.tsx` — tree, gallery, report list
+- `services/api/app/service/library.py`: lists `adapters/`, `outputs/`, `reports/` under the prefix and classifies each key
+- `apps/web/src/components/library/library-view.tsx`: tree, gallery, report list
 
 ## Canonical Files
 - `services/api/app/service/library.py`

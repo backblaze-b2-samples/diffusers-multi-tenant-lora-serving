@@ -11,16 +11,16 @@ app's own features instead of rebuilding the same shell. Storage is
 
 **What you get out of the box:**
 - Full-stack dashboard UI (Next.js 16, React 19, Tailwind v4, shadcn/ui, TanStack Query, Recharts)
-- Adapter Registry — publish, version, edit, verify and delete tenant LoRA adapters
-- Adapter Serving — tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
-- Generate and Compare — generate per tenant and adapter, compare adapters on one seed
-- Runs and Reports — jobs, worker recovery and adapters.json timing reports
-- Library — adapters, outputs and reports under the app prefix
-- Bucket Explorer — browse, preview, download and delete any object in the bucket
-- Dashboard — tenants, adapters, workers, cache hits and timings
-- Settings — theme, generate defaults and read-only server config
+- Adapter Registry: publish, version, edit, verify and delete tenant LoRA adapters
+- Adapter Serving: tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
+- Generate and Compare: generate per tenant and adapter, compare adapters on one seed
+- Runs and Reports: jobs, worker recovery and adapters.json timing reports
+- Library: adapters, outputs and reports under the app prefix
+- Bucket Explorer: browse, preview, download and delete any object in the bucket
+- Dashboard: tenants, adapters, workers, cache hits and timings
+- Settings: theme, generate defaults and read-only server config
 - Backend with a strict layered architecture and structural tests (FastAPI, Python 3.12+, boto3, Pydantic v2, huggingface_hub, SQLite; workers: PyTorch, Diffusers, PEFT, httpx)
-- Agent-optimized docs — your AI coding agent can read the repo and start contributing immediately
+- Agent-optimized docs: your AI coding agent can read the repo and start contributing immediately
 <!-- gen:end readme-header -->
 
 <!-- gen:begin readme-screenshots -->
@@ -83,10 +83,10 @@ dependencies, and creates two Python 3.12 virtualenvs: `services/api/.venv`
 <!-- gen:begin readme-credentials -->
 1. **Create a bucket** and an **application key** with `Read and Write`
    permission, then paste each value into `.env`:
-   - `B2_APPLICATION_KEY_ID` — B2 application key ID (**keyID** in the B2 console); dispatcher only
-   - `B2_APPLICATION_KEY` — B2 application key (**applicationKey**), shown once at creation; dispatcher only
-   - `B2_BUCKET_NAME` — bucket unique name (**Bucket Unique Name** in the B2 console)
-   - `B2_REGION` — the region inside the bucket's **Endpoint** (`s3.<region>.backblazeb2.com`); the S3 endpoint is derived from it
+   - `B2_APPLICATION_KEY_ID`: B2 application key ID (**keyID** in the B2 console); dispatcher only
+   - `B2_APPLICATION_KEY`: B2 application key (**applicationKey**), shown once at creation; dispatcher only
+   - `B2_BUCKET_NAME`: bucket unique name (**Bucket Unique Name** in the B2 console)
+   - `B2_REGION`: the region inside the bucket's **Endpoint** (`s3.<region>.backblazeb2.com`); the S3 endpoint is derived from it
 
    B2 shows an application key once, at creation. The optional variables are
    documented in `.env.example` and in the delivery runbooks.
@@ -225,7 +225,7 @@ because their cards declare `license: other`.
 
 | Model | Role | Commit | File | sha256 (first 16) | License |
 |---|---|---|---|---|---|
-| [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) | base model | `462165984030` | fp16 variant | — | [CreativeML Open RAIL++-M](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) |
+| [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) | base model | `462165984030` | fp16 variant | - | [CreativeML Open RAIL++-M](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) |
 | [nerijs/pixel-art-xl](https://huggingface.co/nerijs/pixel-art-xl) | `acme/pixel-art` | `8bf4a4d9ea28` | `pixel-art-xl.safetensors` | `4234637cb80c998f` | [CreativeML OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
 | [goofyai/3d_render_style_xl](https://huggingface.co/goofyai/3d_render_style_xl) | `acme/3d-render` | `5ec74a57db5e` | `3d_render_style_xl.safetensors` | `393de3e04d956b13` | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [TheLastBen/Papercut_SDXL](https://huggingface.co/TheLastBen/Papercut_SDXL) | `globex/papercut` | `b001f28d3913` | `papercut.safetensors` | `98f1729d858e7bf7` | [CreativeML OpenRAIL-M](https://huggingface.co/spaces/CompVis/stable-diffusion-license) |
@@ -286,14 +286,14 @@ process logs) lands in `.local/selftest/<run-id>/`. See
 ## Core Features
 
 <!-- gen:begin readme-core-features -->
-- [Adapter Registry](docs/features/adapter-registry.md) — publish, version, edit, verify and delete tenant LoRA adapters
-- [Adapter Serving](docs/features/adapter-serving.md) — tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
-- [Generate and Compare](docs/features/generate.md) — generate per tenant and adapter, compare adapters on one seed
-- [Runs and Reports](docs/features/runs-and-reports.md) — jobs, worker recovery and adapters.json timing reports
-- [Library](docs/features/library.md) — adapters, outputs and reports under the app prefix
-- [Bucket Explorer](docs/features/file-browser.md) — browse, preview, download and delete any object in the bucket
-- [Dashboard](docs/features/dashboard.md) — tenants, adapters, workers, cache hits and timings
-- [Settings](docs/features/settings.md) — theme, generate defaults and read-only server config
+- [Adapter Registry](docs/features/adapter-registry.md): publish, version, edit, verify and delete tenant LoRA adapters
+- [Adapter Serving](docs/features/adapter-serving.md): tenant-scoped resolution, presigned fetch, verified cache, load and unload per request
+- [Generate and Compare](docs/features/generate.md): generate per tenant and adapter, compare adapters on one seed
+- [Runs and Reports](docs/features/runs-and-reports.md): jobs, worker recovery and adapters.json timing reports
+- [Library](docs/features/library.md): adapters, outputs and reports under the app prefix
+- [Bucket Explorer](docs/features/file-browser.md): browse, preview, download and delete any object in the bucket
+- [Dashboard](docs/features/dashboard.md): tenants, adapters, workers, cache hits and timings
+- [Settings](docs/features/settings.md): theme, generate defaults and read-only server config
 <!-- gen:end readme-core-features -->
 
 Plus the kit's shared pieces: the [Design System](docs/design-system.md) at
@@ -317,13 +317,13 @@ and `/metrics` (request counters plus `adapter_rejections_total` by code).
 | --- | --- |
 | `pnpm run setup` | One-time cold start: copy `.env.example` → `.env` (only if missing), install workspace deps, create the backend venv, install locked API deps |
 | `pnpm dev` | Start frontend + backend (runs the `pnpm run doctor` preflight first) |
-| `pnpm wait-ready` | Block until the running web + API answer, print one line, exit 0/1 — use instead of sleeping before driving the app |
+| `pnpm wait-ready` | Block until the running web + API answer, print one line, exit 0/1, use instead of sleeping before driving the app |
 | `pnpm contract:export` | Export the FastAPI OpenAPI contract into `docs/api/openapi.json` |
 | `pnpm contract:check` | Verify the exported contract and the generated client routes agree, both ways |
 | `pnpm gen:api` | Regenerate the shared types, the client route registry and the query-key factory from the exported contract |
 | `pnpm gen:docs` | Regenerate the marker-delimited doc regions from `docs/exec-plans/sample.json` |
 | `pnpm gen:check` | Fail if any generated file or doc region is stale (first step of `pnpm verify:web`) |
-| `pnpm verify` | Credential-free pre-PR suite — runs `check:agent-docs`, `verify:api`, then `verify:web` |
+| `pnpm verify` | Credential-free pre-PR suite, runs `check:agent-docs`, `verify:api`, then `verify:web` |
 | `pnpm verify:full` | `pnpm verify` plus Playwright E2E; needs a live local stack, real `.env`, a free web port, and Chromium |
 | `pnpm test:verify` | Run throwaway verification specs from `apps/web/e2e/verify/` against the app, with the shared browser fixtures |
 <!-- gen:end readme-commands -->
@@ -363,7 +363,7 @@ same `WORKER_TOKEN`.
 <!-- gen:begin readme-doc-map -->
 | Doc | Purpose |
 | --- | --- |
-| [AGENTS.md](AGENTS.md) | Agent table of contents — start here |
+| [AGENTS.md](AGENTS.md) | Agent table of contents, start here |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System layout, layering, data flows |
 | [docs/features/](docs/features/) | Feature docs (adapter registry, adapter serving, generate and compare, runs and reports, library, bucket explorer, dashboard, settings) |
 | [docs/design-system.md](docs/design-system.md) | Design tokens, primitives, loader, error/empty states |

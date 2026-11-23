@@ -20,6 +20,6 @@ describe("job state", () => {
   it("labels cache results", () => {
     expect(cacheLabel("hit")).toBe("cache hit");
     expect(cacheLabel("none")).toBe("base model");
-    expect(cacheLabel(null)).toBe("—");
+    expect(cacheLabel(null)).toBe("-");
   });
 });

@@ -36,7 +36,7 @@ and no SLA is provided for the repository software.
 
 Confident, precise, quietly professional. Voice is direct and free of hype ("Stop
 wiring boilerplate and start building"). The interface should feel like a modern
-developer tool — considered, calm, trustworthy — not a marketing showpiece. It is a
+developer tool, considered, calm, trustworthy, not a marketing showpiece. It is a
 **neutral foundation**: the design carries craft through restraint,
 not through a strong opinionated identity of its own.
 
@@ -62,7 +62,7 @@ not through a strong opinionated identity of its own.
 - **Earned familiarity over novelty.** Use standard, trusted affordances (top bar +
   side nav, command palette, data tables). The tool disappears into the task.
 - **Every state is designed.** Default, hover, focus, active, disabled, loading (skeleton),
-  empty (teaches the interface), and error (says what's wrong + offers retry) — never
+  empty (teaches the interface), and error (says what's wrong + offers retry): never
   half-shipped.
 - **Consistency is the feature.** One button vocabulary, one form-control set, one icon
   style across every screen. Divergence is a bug.

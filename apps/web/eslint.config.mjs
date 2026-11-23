@@ -13,7 +13,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  // Generated shadcn/ui components — do not modify or lint strictly
+  // Generated shadcn/ui components, do not modify or lint strictly
   {
     files: ["src/components/ui/**"],
     rules: {
@@ -21,7 +21,7 @@ const eslintConfig = defineConfig([
     },
   },
   // Playwright test files. `react-hooks/rules-of-hooks` fires on a fixture's
-  // `use` callback — Playwright's own parameter name, and not a React hook.
+  // `use` callback, Playwright's own parameter name, and not a React hook.
   // Nothing under e2e/ renders React at all, so the rule has nothing to say here.
   {
     files: ["e2e/**"],

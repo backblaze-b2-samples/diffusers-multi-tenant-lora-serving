@@ -93,7 +93,7 @@ def main() -> int:
             parser.error(f"origin must be scheme://host with no trailing slash: {origin!r}")
 
     if not settings.b2_bucket_name:
-        err("B2_BUCKET_NAME is not set — configure .env first.")
+        err("B2_BUCKET_NAME is not set, configure .env first.")
         return 2
 
     client = _client()
@@ -115,7 +115,7 @@ def main() -> int:
     out(json.dumps(our_rule, indent=2))
 
     if not args.apply:
-        out("\nDry run — re-run with --apply to write this change.")
+        out("\nDry run, re-run with --apply to write this change.")
         return 0
 
     client.put_bucket_cors(

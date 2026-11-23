@@ -1,4 +1,4 @@
-// GENERATED FILE — DO NOT EDIT.
+// GENERATED FILE, DO NOT EDIT.
 //
 // Written by `pnpm gen:api` from:
 //   docs/api/openapi.json
@@ -135,7 +135,7 @@ export interface FileMetadata {
   uploaded_at: string;
   /**
    * Public object URL, set only when B2_PUBLIC_URL_BASE is configured and
-   * the bucket is public. Null otherwise — the UI asks for a presigned URL
+   * the bucket is public. Null otherwise, the UI asks for a presigned URL
    * instead.
    */
   url: string | null;

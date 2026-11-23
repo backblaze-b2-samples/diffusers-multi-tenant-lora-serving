@@ -9,11 +9,11 @@ Let a user send one generation request as a tenant, or render one prompt and see
 - API: `POST /tenants/{tenant_id}/generations`, `POST /runs/compare`, `GET /jobs/{job_id}`, `GET /jobs/{job_id}/output`, `GET /runs/{run_id}`
 
 ## Core Functions
-- `apps/web/src/components/generate/generate-form.tsx` — tenant, adapter (or None), version, prompt, seed, steps, size, scale, and a collapsed raw-reference field
-- `apps/web/src/components/generate/compare-form.tsx` — tenant, up to four adapters, include-base switch
-- `apps/web/src/components/jobs/job-image.tsx` — image via presigned GET, or progress with the current step
-- `apps/web/src/lib/adapter-ref.ts` — reference parsing and the isolation error messages
-- `services/api/app/service/jobs.py` — `enqueue_generation`, `enqueue_compare`
+- `apps/web/src/components/generate/generate-form.tsx`: tenant, adapter (or None), version, prompt, seed, steps, size, scale, and a collapsed raw-reference field
+- `apps/web/src/components/generate/compare-form.tsx`: tenant, up to four adapters, include-base switch
+- `apps/web/src/components/jobs/job-image.tsx`: image via presigned GET, or progress with the current step
+- `apps/web/src/lib/adapter-ref.ts`: reference parsing and the isolation error messages
+- `services/api/app/service/jobs.py`: `enqueue_generation`, `enqueue_compare`
 
 ## Canonical Files
 - `apps/web/src/components/generate/generate-form.tsx`

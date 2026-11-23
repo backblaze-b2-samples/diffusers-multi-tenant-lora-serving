@@ -48,7 +48,7 @@ Reliability expectations and practices for this project.
 - `/metrics`: per-route request counts and durations, `adapter_rejections_total{code}`
 - `reports/<run-id>/adapters.json`: per-job fetch, load, generate and unload times, cache results and retries
 
-## Stateful Counters — durability caveats
+## Stateful Counters, durability caveats
 
 - The job queue survives a dispatcher restart (SQLite file); `/metrics` counters and the download counter are in-process and reset on restart
 - The download counter persists to `DOWNLOAD_COUNT_FILE` (default `.data/download_count.json` at the repo root)

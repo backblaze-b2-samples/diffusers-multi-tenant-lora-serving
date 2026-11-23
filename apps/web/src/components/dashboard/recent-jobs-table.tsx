@@ -39,7 +39,7 @@ export function RecentJobsTable() {
                     </Link>
                   </TableCell>
                   <TableCell><JobStateBadge state={j.state} /></TableCell>
-                  <TableCell className="text-xs">{j.worker_id ?? "—"}{j.attempt > 1 ? ` (attempt ${j.attempt})` : ""}</TableCell>
+                  <TableCell className="text-xs">{j.worker_id ?? "-"}{j.attempt > 1 ? ` (attempt ${j.attempt})` : ""}</TableCell>
                   <TableCell className="text-xs">{cacheLabel(j.cache)}</TableCell>
                 </TableRow>
               ))}

@@ -10,13 +10,13 @@ Publish, version, edit, verify and delete each tenant's LoRA adapters in B2, so 
 - Script: `services/api/scripts/publish_fixtures.py` (`pnpm publish:fixtures`)
 
 ## Core Functions
-- `services/api/app/service/registry.py` — `publish`, `update_adapter`, `delete_adapter`, `delete_version`, `verify_version`, `list_tenants`, `list_adapters`
-- `services/api/app/service/manifests.py` — tenant and version manifest reads (10 s cache, ETag revalidation) and writes
-- `services/api/app/service/safetensors_check.py` — header parse; refuses pickle formats
-- `services/api/app/service/publish_sources.py` — pinned Hugging Face file or uploaded file
-- `services/api/app/service/fixtures.py` — the demo set from `fixtures/adapters.yaml`
-- `services/api/app/repo/adapter_store.py` — managed multipart upload while hashing, head, streamed re-hash, prefix-scoped delete
-- `services/api/app/repo/hf_source.py` — `huggingface_hub` download and model-card base model
+- `services/api/app/service/registry.py`: `publish`, `update_adapter`, `delete_adapter`, `delete_version`, `verify_version`, `list_tenants`, `list_adapters`
+- `services/api/app/service/manifests.py`: tenant and version manifest reads (10 s cache, ETag revalidation) and writes
+- `services/api/app/service/safetensors_check.py`: header parse; refuses pickle formats
+- `services/api/app/service/publish_sources.py`: pinned Hugging Face file or uploaded file
+- `services/api/app/service/fixtures.py`: the demo set from `fixtures/adapters.yaml`
+- `services/api/app/repo/adapter_store.py`: managed multipart upload while hashing, head, streamed re-hash, prefix-scoped delete
+- `services/api/app/repo/hf_source.py`: `huggingface_hub` download and model-card base model
 
 ## Canonical Files
 - Publish order: `services/api/app/service/registry.py` (`publish`)
