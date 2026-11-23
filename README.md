@@ -24,7 +24,35 @@ app's own features instead of rebuilding the same shell. Storage is
 <!-- gen:end readme-header -->
 
 <!-- gen:begin readme-screenshots -->
+## What it looks like
 
+**Dashboard**: tenants, adapter versions in B2, jobs, workers online and cache hit rate, a fetch, load, generate and unload time chart, and recent jobs per tenant.
+
+![Dashboard with tenant, adapter, job, worker and cache-hit metrics, a load versus generate time chart and recent jobs](docs/images/dashboard.png)
+
+**Adapters**: every tenant's LoRA adapters in B2, with current version, scale, license and size, plus publish actions.
+
+![Adapter registry listing each tenant's LoRA adapters with version, scale, license and size](docs/images/adapters.png)
+
+**Adapter detail**: one tenant's adapter with a tenant-scoped generate form, immutable checksummed versions, its B2 manifest entry and recent jobs.
+
+![Papercut adapter detail for tenant globex with generate form, versions, manifest entry and recent jobs](docs/images/adapter-detail.png)
+
+**Generate**: generate as a tenant through one of its adapters, try the tenant isolation check, or compare adapters on the same prompt and seed.
+
+![Generate page with tenant, adapter and version pickers and a compare adapters form](docs/images/generate.png)
+
+**Runs**: jobs grouped by run, each with its adapters.json timing report written to B2.
+
+![Runs list with run IDs, creation times, job counts, states and adapters.json reports](docs/images/runs.png)
+
+**Run detail**: the generated image labelled with its tenant and adapter, the verified sha256, cache hit, unload result and the run's timing report.
+
+![Run detail showing a papercut fox image generated for globex with checksum, cache and timing data](docs/images/run-detail.png)
+
+**Library**: everything the app wrote under its B2 prefix, here the generated outputs labelled by tenant and run.
+
+![Library outputs tab with a grid of generated images labelled by tenant and run](docs/images/library.png)
 <!-- gen:end readme-screenshots -->
 
 ## What this sample shows

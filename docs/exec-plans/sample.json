@@ -61,5 +61,41 @@
   ],
   "attribution_token": "b2ai-diffusers-lora-weights-hub",
   "repo": { "org": "backblaze-b2-samples", "name": "diffusers-multi-tenant-lora-serving" },
-  "screenshots": []
+  "screenshots": [
+    {
+      "path": "docs/images/dashboard.png",
+      "alt": "Dashboard with tenant, adapter, job, worker and cache-hit metrics, a load versus generate time chart and recent jobs",
+      "caption": "**Dashboard**: tenants, adapter versions in B2, jobs, workers online and cache hit rate, a fetch, load, generate and unload time chart, and recent jobs per tenant."
+    },
+    {
+      "path": "docs/images/adapters.png",
+      "alt": "Adapter registry listing each tenant's LoRA adapters with version, scale, license and size",
+      "caption": "**Adapters**: every tenant's LoRA adapters in B2, with current version, scale, license and size, plus publish actions."
+    },
+    {
+      "path": "docs/images/adapter-detail.png",
+      "alt": "Papercut adapter detail for tenant globex with generate form, versions, manifest entry and recent jobs",
+      "caption": "**Adapter detail**: one tenant's adapter with a tenant-scoped generate form, immutable checksummed versions, its B2 manifest entry and recent jobs."
+    },
+    {
+      "path": "docs/images/generate.png",
+      "alt": "Generate page with tenant, adapter and version pickers and a compare adapters form",
+      "caption": "**Generate**: generate as a tenant through one of its adapters, try the tenant isolation check, or compare adapters on the same prompt and seed."
+    },
+    {
+      "path": "docs/images/runs.png",
+      "alt": "Runs list with run IDs, creation times, job counts, states and adapters.json reports",
+      "caption": "**Runs**: jobs grouped by run, each with its adapters.json timing report written to B2."
+    },
+    {
+      "path": "docs/images/run-detail.png",
+      "alt": "Run detail showing a papercut fox image generated for globex with checksum, cache and timing data",
+      "caption": "**Run detail**: the generated image labelled with its tenant and adapter, the verified sha256, cache hit, unload result and the run's timing report."
+    },
+    {
+      "path": "docs/images/library.png",
+      "alt": "Library outputs tab with a grid of generated images labelled by tenant and run",
+      "caption": "**Library**: everything the app wrote under its B2 prefix, here the generated outputs labelled by tenant and run."
+    }
+  ]
 }
