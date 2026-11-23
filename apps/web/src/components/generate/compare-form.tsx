@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { JobImage } from "@/components/jobs/job-image";
+import { PROMPT_PLACEHOLDER, SEED_PLACEHOLDER } from "@/lib/adapter-form";
 import { SIZE_OPTIONS, STEP_OPTIONS } from "@/lib/demo-preferences";
 import { useDemoPreferences } from "@/lib/use-demo-preferences";
 import { useAdapters, useCompareAdapters, useRun, useTenants } from "@/lib/queries";
@@ -91,12 +92,12 @@ export function CompareForm() {
         <div className="space-y-1.5">
           <Label htmlFor="cmp-prompt">Prompt</Label>
           <Textarea id="cmp-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)}
-            placeholder="a lighthouse on a cliff at sunset" required rows={2} />
+            placeholder={PROMPT_PLACEHOLDER} required rows={2} />
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="cmp-seed">Seed</Label>
-            <Input id="cmp-seed" type="number" min={0} value={seed} onChange={(e) => setSeed(e.target.value)} placeholder="42" />
+            <Input id="cmp-seed" type="number" min={0} value={seed} onChange={(e) => setSeed(e.target.value)} placeholder={SEED_PLACEHOLDER} />
           </div>
           <div className="space-y-1.5">
             <Label>Steps</Label>

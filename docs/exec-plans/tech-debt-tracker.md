@@ -58,3 +58,22 @@ Known tech debt items. Agents update this when they discover or create tech debt
 | Custom `FileNotFoundError` shadowed the built-in | Renamed to `FileNotFoundServiceError` |
 | Dropzone accepted any file type client-side | `accept` allow-list mirroring backend `ALLOWED_TYPES` (tested for drift) |
 | No test harness for feature specs | pytest suite across upload, files, activity, errors, validation, rate limit, pagination |
+
+## 2026-11-23 — verify
+
+- friction (unresolved after 3 rounds): Publish adapter dialog — empty submit shows "Pick a tenant" under a select displaying "acme"; Adapter/Version/Repository show grey placeholders → placeholder values read as filled fields and the tenant error contradicts the visible value (.local/verify/r3/A/06-publish-empty-submit.png)
+- friction (unresolved after 3 rounds): /generate queued job — "Waiting for a worker" for ~104 s while a worker was online but busy with earlier jobs → no queue position, reads as if no worker exists (.local/verify/r3/A/13-generate-running.png)
+- friction (unresolved after 3 rounds): /adapters table — rows do nothing on click; only the small name link opens the detail page → the checksummed manifest is hard to discover (.local/verify/r3/A/09-publish-after.png)
+- friction (unresolved after 3 rounds): /adapters after publish — toast "Published r3alpha/3d-render@v1" has no action → publish does not chain to Generate (.local/verify/r3/A/09-publish-after.png)
+- friction (unresolved after 3 rounds): Publish adapter dialog, B2 write phase — static "Upload to the API done. Writing to B2: …" for ~20 s, no advancing progress → long wait without live progress (.local/verify/r3/B/10-publish-mid-wait.png)
+- friction (unresolved after 3 rounds): Publish adapter dialog — modal blocks sidebar navigation until closed (Close/Escape work) → other screens unreachable during a publish without closing first (.local/verify/r3/B/11-publish-nav-generate.png)
+- /generate after "Try acme/3d-render" chip — Adapter/Version selects still show the tenant's own adapter while the collapsed Advanced reference overrides it → primary selects misstate what is sent (.local/verify/r3/A/15-reject-after-chip.png)
+- /adapters — "Publish demo adapters" is a small secondary button at the bottom of the table → one-click demo path is easy to miss (.local/verify/r3/A/04-adapters-page.png)
+- /generate after mid-run reload — job card reads "seed 7" while the Seed field resets to "Random" → form no longer matches the shown job (.local/verify/r3/B/25-generate-step-counter.png)
+- Generate result card — live phases show Fetching, Loading, Generating, Uploading but never Unloading → unload proven only after the fact (.local/verify/r3/C/09-r3cfox-hit-result.png)
+- Run detail after failover — shows seed, "attempt 2", "Retried jobs 1" but no output hash → "same image" cannot be confirmed in-app (.local/verify/r3/C/17-run-detail-failover.png)
+- Generate result card during lease wait — warning icon, no spinner, badge "Running" → busy signal briefly ambiguous (.local/verify/r3/C/13-failover-after-kill.png)
+- Adapter detail — top bar reads "3d Render" while the heading reads "3d-render" → inconsistent label from the shared header (.local/verify/r2/C/06-soylent-verify.png)
+- Library Outputs — tiles show only "tenant · run-…" without the adapter, though run detail says each image is labelled with tenant and adapter → label mismatch (.local/verify/r2/C/26-library-outputs-settled.png)
+- Library Outputs — tiles blank white for ~15 s before paint with no placeholder → looks broken while loading (.local/verify/r2/C/25-library-outputs.png)
+- Library Outputs — clicking an image opens its preview on /files, leaving the Library → context jump (.local/verify/r2/B/31-library-output-detail.png)

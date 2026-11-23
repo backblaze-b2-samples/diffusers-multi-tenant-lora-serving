@@ -7,13 +7,19 @@ B2 only through the presigned URLs issued here.
 
 import hashlib
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any, BinaryIO
 
+from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import BotoCoreError, ClientError
 
 from app.config import settings
-from app.repo.b2_client import get_s3_client
+from app.repo.b2_client import (
+    UPLOAD_MAX_CONCURRENCY,
+    get_s3_client,
+    get_upload_client,
+    upload_in_flight,
+)
 from app.repo.list_cache import invalidate as _invalidate_list_cache
 
 _HASH_CHUNK = 8 * 1024 * 1024
@@ -42,16 +48,41 @@ def _missing(e: ClientError) -> bool:
     return e.response.get("Error", {}).get("Code", "") in ("404", "NoSuchKey", "NotFound")
 
 
-def upload_stream(key: str, fileobj: BinaryIO, content_type: str) -> tuple[str, int]:
-    """Managed (multipart above 8 MB) upload while hashing. Returns (sha256, size)."""
+# Sized for a multi-hundred-MB adapter over an ordinary uplink. boto3's default
+# (8 MB parts, 10 in parallel) splits a ~2.5 MB/s link ten ways, so each part
+# crawls at ~0.25 MB/s, sits past the read timeout and B2 drops the connection.
+# Four 16 MB parts in flight keep every part moving (~26 s each at 2.5 MB/s,
+# well inside the upload client's 120 s read timeout) while still filling a
+# fast link. A failed part is retried on its own by the upload client.
+_UPLOAD_TRANSFER = TransferConfig(
+    multipart_threshold=16 * 1024 * 1024,
+    multipart_chunksize=16 * 1024 * 1024,
+    max_concurrency=UPLOAD_MAX_CONCURRENCY,
+)
+
+
+def upload_stream(
+    key: str,
+    fileobj: BinaryIO,
+    content_type: str,
+    on_bytes: Callable[[int], None] | None = None,
+) -> tuple[str, int]:
+    """Managed multipart upload while hashing. Returns (sha256, size).
+
+    `on_bytes` receives each increment of bytes B2 has accepted (negative when
+    boto3 rewinds a part to retry it), for progress reporting.
+    """
     reader = _HashingReader(fileobj)
     try:
-        get_s3_client().upload_fileobj(
-            reader,
-            settings.b2_bucket_name,
-            key,
-            ExtraArgs={"ContentType": content_type},
-        )
+        with upload_in_flight():
+            get_upload_client().upload_fileobj(
+                reader,
+                settings.b2_bucket_name,
+                key,
+                ExtraArgs={"ContentType": content_type},
+                Config=_UPLOAD_TRANSFER,
+                Callback=on_bytes,
+            )
     except (ClientError, BotoCoreError) as e:
         raise RuntimeError(f"B2 upload failed for '{key}': {e}") from e
     _invalidate_list_cache()

@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   fetch_ms INTEGER, load_ms INTEGER, generate_ms INTEGER, unload_ms INTEGER,
   total_ms INTEGER, output_sha256 TEXT, adapters_after_unload TEXT,
   error_code TEXT, error_message TEXT, device TEXT,
-  created_at TEXT NOT NULL, started_at REAL, finished_at TEXT
+  created_at TEXT NOT NULL, started_at REAL, finished_at TEXT,
+  phase TEXT, heartbeat_at REAL
 );
 CREATE INDEX IF NOT EXISTS jobs_state ON jobs(state, created_at);
 CREATE INDEX IF NOT EXISTS jobs_run ON jobs(run_id);
@@ -39,6 +40,9 @@ CREATE TABLE IF NOT EXISTS workers (
   cache_entries INTEGER NOT NULL DEFAULT 0, cache_bytes INTEGER NOT NULL DEFAULT 0
 );
 """
+
+# Columns added after the first release: ALTER an existing jobs.db in place.
+_ADDED_JOB_COLUMNS = {"phase": "TEXT", "heartbeat_at": "REAL"}
 
 _lock = RLock()
 _conn: sqlite3.Connection | None = None
@@ -63,6 +67,10 @@ def _db() -> sqlite3.Connection:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(_SCHEMA)
+        have = {r["name"] for r in conn.execute("PRAGMA table_info(jobs)")}
+        for col, kind in _ADDED_JOB_COLUMNS.items():
+            if col not in have:
+                conn.execute(f"ALTER TABLE jobs ADD COLUMN {col} {kind}")
         _conn, _conn_path = conn, path
     return _conn
 
@@ -151,7 +159,7 @@ def expire_leases(now: float, max_attempts: int) -> list[dict[str, Any]]:
                     failed.append(r["job_id"])
                 else:
                     db.execute(
-                        "UPDATE jobs SET state='queued', lease_expires_at=NULL, step=NULL "
+                        "UPDATE jobs SET state='queued', lease_expires_at=NULL, step=NULL, phase=NULL "
                         "WHERE job_id = ?",
                         (r["job_id"],),
                     )
@@ -176,8 +184,9 @@ def claim_next(worker_id: str, now: float, lease_seconds: int) -> dict[str, Any]
                 return None
             db.execute(
                 "UPDATE jobs SET state='running', worker_id=?, attempt=attempt+1, "
-                "lease_expires_at=?, started_at=?, step=NULL WHERE job_id=?",
-                (worker_id, now + lease_seconds, now, r["job_id"]),
+                "lease_expires_at=?, started_at=?, heartbeat_at=?, step=NULL, phase=NULL "
+                "WHERE job_id=?",
+                (worker_id, now + lease_seconds, now, now, r["job_id"]),
             )
             db.execute("COMMIT")
         except Exception:

@@ -9,6 +9,7 @@ One dispatcher owns manifest writes; a per-tenant lock serializes them.
 
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from threading import Lock
 from typing import BinaryIO
@@ -76,7 +77,14 @@ def _entry_or_404(m: TenantManifest, adapter: str) -> TenantAdapterEntry:
     return entry
 
 
-def publish(inp: PublishInput, fileobj: BinaryIO, size: int, filename: str) -> AdapterDetail:
+def publish(
+    inp: PublishInput,
+    fileobj: BinaryIO,
+    size: int,
+    filename: str,
+    on_bytes: Callable[[int], None] | None = None,
+) -> AdapterDetail:
+    """Publish one version. `on_bytes` reports upload progress (see adapter_store)."""
     check_name(inp.tenant_id, "tenant_id")
     check_name(inp.adapter, "adapter")
     _check_version(inp.version)
@@ -99,7 +107,17 @@ def publish(inp: PublishInput, fileobj: BinaryIO, size: int, filename: str) -> A
         wkey = keys.weight_key(t, a, v)
         if adapter_store.head(keys.version_manifest_key(t, a, v)) is not None:
             raise AppError(409, "version_exists", f"{a}@{v} already exists in storage")
-        sha256, sent = adapter_store.upload_stream(wkey, fileobj, "application/octet-stream")
+        try:
+            sha256, sent = adapter_store.upload_stream(
+                wkey, fileobj, "application/octet-stream", on_bytes
+            )
+        except RuntimeError as e:
+            logger.error("adapter upload failed tenant=%s adapter=%s version=%s: %s", t, a, v, e)
+            raise AppError(
+                502, "b2_upload_failed",
+                f"Uploading {t}/{a}@{v} to B2 did not finish: the connection to B2 timed out "
+                "or was dropped. Nothing was published; check your network and retry.",
+            ) from None
         stored = adapter_store.head(wkey)
         if sent != size or stored is None or stored[0] != size:
             raise AppError(502, "upload_size_mismatch", "stored weight size does not match")

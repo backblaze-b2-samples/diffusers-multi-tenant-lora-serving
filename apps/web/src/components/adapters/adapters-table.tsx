@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQueries } from "@tanstack/react-query";
 import { Layers, PackageOpen } from "lucide-react";
 import { toast } from "sonner";
 import type { AdapterSummary } from "@diffusers-multi-tenant-lora-serving/shared";
 
+import { DemoPublishStatus } from "@/components/adapters/demo-publish-status";
+import { LoadingNotice } from "@/components/common/loading-notice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getAdapters } from "@/lib/api-client";
 import { humanizeBytes } from "@/lib/utils";
-import { qk, usePublishFixtures, useTenants } from "@/lib/queries";
+import { qk, useFixturePublishStatus, usePublishFixtures, useTenants } from "@/lib/queries";
 
 const ALL = "__all__";
 
@@ -25,6 +27,8 @@ export function AdaptersTable() {
   const [tenant, setTenant] = useState(ALL);
   const tenants = useTenants();
   const fixtures = usePublishFixtures();
+  const job = useFixturePublishStatus();
+  const running = fixtures.isPending || job.data?.state === "running";
   const ids = (tenants.data ?? []).map((t) => t.tenant_id);
   const shown = tenant === ALL ? ids : ids.filter((t) => t === tenant);
   // One query per tenant, under the same key `useAdapters` uses.
@@ -36,12 +40,23 @@ export function AdaptersTable() {
 
   const publishDemo = () =>
     fixtures.mutate(undefined, {
-      onSuccess: (done) =>
-        toast.success(
-          done.length ? `Published ${done.length} demo adapter(s)` : "Demo adapters already published",
-        ),
-      onError: (e) => toast.error("Publishing demo adapters failed", { description: e.message }),
+      onError: (e) => toast.error("Could not start publishing the demo adapters", { description: e.message }),
     });
+
+  // Announce the outcome once, when a job this page watched stops running.
+  // The failure itself stays on screen in <DemoPublishStatus>.
+  const lastState = useRef(job.data?.state);
+  useEffect(() => {
+    const prev = lastState.current;
+    lastState.current = job.data?.state;
+    if (prev !== "running" || !job.data) return;
+    if (job.data.state === "succeeded") toast.success(job.data.stage);
+    if (job.data.state === "failed") {
+      toast.error("Publishing demo adapters failed", { description: job.data.error ?? undefined });
+    }
+  }, [job.data]);
+
+  const publishLabel = running ? "Publishing demo adapters…" : "Publish demo adapters";
 
   return (
     <Card>
@@ -64,10 +79,16 @@ export function AdaptersTable() {
         </CardAction>
       </CardHeader>
       <CardContent className="p-0">
+        {(running || job.data?.state === "failed") && (
+          <div className="border-b border-border p-5">
+            <DemoPublishStatus status={job.data} onRetry={publishDemo} retrying={running} />
+          </div>
+        )}
         {tenants.error ? (
           <ErrorState error={tenants.error} onRetry={() => tenants.refetch()} />
         ) : loading ? (
           <div className="space-y-2 p-5">
+            <LoadingNotice subject="adapters" />
             <Skeleton className="h-8 w-full" />
             <Skeleton className="h-8 w-full" />
           </div>
@@ -75,11 +96,11 @@ export function AdaptersTable() {
           <EmptyState
             icon={PackageOpen}
             title="No adapters published yet"
-            description="Publish the demo set (two tenants, three SDXL LoRAs pinned on Hugging Face) or your own adapter."
+            description="Publish the demo set (two tenants, three SDXL LoRAs pinned on Hugging Face, about 600 MB to download and upload to B2) or your own adapter."
             action={
-              <Button size="sm" onClick={publishDemo} disabled={fixtures.isPending}>
+              <Button size="sm" onClick={publishDemo} disabled={running}>
                 <Layers className="h-3.5 w-3.5" />
-                {fixtures.isPending ? "Publishing (downloads ~600 MB)…" : "Publish demo adapters"}
+                {publishLabel}
               </Button>
             }
           />
@@ -122,8 +143,8 @@ export function AdaptersTable() {
       </CardContent>
       {rows.length > 0 && (
         <div className="flex justify-end border-t border-border px-5 py-3">
-          <Button variant="outline" size="sm" onClick={publishDemo} disabled={fixtures.isPending}>
-            {fixtures.isPending ? "Publishing…" : "Publish demo adapters"}
+          <Button variant="outline" size="sm" onClick={publishDemo} disabled={running}>
+            {publishLabel}
           </Button>
         </div>
       )}

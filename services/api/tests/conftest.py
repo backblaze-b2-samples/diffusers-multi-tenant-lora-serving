@@ -70,7 +70,9 @@ def reset_shared_module_state():
 
     cached_get_s3_client = b2_client.get_s3_client
     cached_get_s3_client.cache_clear()
+    b2_client.get_upload_client.cache_clear()
     b2_client._health_cache = None
+    b2_client._uploads_in_flight = 0
     with metrics._lock:
         metrics._request_count.clear()
         metrics._request_duration_sum.clear()

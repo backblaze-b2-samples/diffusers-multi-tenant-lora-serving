@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus } from "lucide-react";
+import { AlertTriangle, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,10 +28,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SCALE_OPTIONS } from "@/lib/adapter-form";
+import { clearPendingPublish, newPendingPublish, savePendingPublish } from "@/lib/pending-publish";
 import { usePublishAdapter, useServerConfig, useTenants } from "@/lib/queries";
+import { humanizeBytes } from "@/lib/utils";
 
 const NEW_TENANT = "__new__";
 const NAME = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
@@ -71,6 +75,7 @@ export function PublishAdapterDialog({ defaultTenant }: { defaultTenant?: string
   const { data: tenants = [] } = useTenants();
   const { data: server } = useServerConfig();
   const publish = usePublishAdapter();
+  const [upload, setUpload] = useState<{ sent: number; total: number } | null>(null);
   const form = useForm<PublishValues>({
     resolver: zodResolver(publishSchema),
     defaultValues: {
@@ -93,6 +98,15 @@ export function PublishAdapterDialog({ defaultTenant }: { defaultTenant?: string
 
   const onSubmit = (v: PublishValues) => {
     const tenant_id = v.tenantChoice === NEW_TENANT ? (v.newTenant ?? "") : v.tenantChoice;
+    // Kept in sessionStorage so the Adapters page can show it after a reload.
+    const pending = newPendingPublish({
+      tenant_id,
+      adapter: v.adapter,
+      version: v.version,
+      stage: v.source === "upload" ? "uploading" : "server",
+    });
+    savePendingPublish(pending);
+    setUpload(null);
     publish.mutate(
       {
         tenant_id,
@@ -106,8 +120,16 @@ export function PublishAdapterDialog({ defaultTenant }: { defaultTenant?: string
         hf_filename: v.hf_filename,
         hf_revision: v.hf_revision,
         file: v.file ?? null,
+        onUploadProgress: (sent, total) => {
+          setUpload({ sent, total });
+          if (sent >= total && pending.stage === "uploading") {
+            pending.stage = "server";
+            savePendingPublish(pending);
+          }
+        },
       },
       {
+        onSettled: () => clearPendingPublish(),
         onSuccess: (d) => {
           toast.success(`Published ${d.tenant_id}/${d.adapter}@${d.current_version}`, {
             description: "Weight, version manifest, then tenant manifest written to B2.",
@@ -350,8 +372,19 @@ export function PublishAdapterDialog({ defaultTenant }: { defaultTenant?: string
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            {publish.error && !publish.isPending && (
+              <Alert variant="destructive">
+                <AlertTriangle />
+                <AlertTitle>Publish failed</AlertTitle>
+                <AlertDescription>{publish.error.message}</AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter className="items-center gap-3">
+              {publish.isPending && (
+                <PublishProgress source={source} upload={upload} />
+              )}
               <Button type="submit" disabled={publish.isPending}>
+                {publish.isPending && <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />}
                 {publish.isPending ? "Publishing…" : "Publish"}
               </Button>
             </DialogFooter>
@@ -359,5 +392,40 @@ export function PublishAdapterDialog({ defaultTenant }: { defaultTenant?: string
         </Form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Browser-to-API upload progress, then the API's B2 write (no byte progress of its own). */
+function PublishProgress({
+  source,
+  upload,
+}: {
+  source: PublishValues["source"];
+  upload: { sent: number; total: number } | null;
+}) {
+  if (source !== "upload") {
+    return (
+      <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+        Downloading from Hugging Face, then uploading to B2.
+      </p>
+    );
+  }
+  if (upload && upload.sent >= upload.total) {
+    return (
+      <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+        Upload to the API done. Writing to B2: weight, version manifest, then tenant manifest.
+      </p>
+    );
+  }
+  const pct = upload && upload.total ? Math.round((upload.sent / upload.total) * 100) : 0;
+  return (
+    <div role="status" aria-live="polite" className="min-w-0 flex-1 space-y-1">
+      <Progress value={pct} aria-label="Upload to the API" />
+      <p className="text-xs text-muted-foreground tabular-nums">
+        Uploading to the API: {pct}%
+        {upload ? ` (${humanizeBytes(upload.sent)} of ${humanizeBytes(upload.total)})` : ""}. Then the
+        API writes it to B2.
+      </p>
+    </div>
   );
 }

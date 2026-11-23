@@ -128,3 +128,36 @@ async def test_register_rejects_other_base_model(client):
     r = await client.post("/worker/register", json={
         "worker_id": "w9", "device": "cpu", "dtype": "float32", "base_model": "other/model"})
     assert r.status_code == 422 and r.json()["code"] == "base_model_mismatch"
+
+
+async def test_heartbeat_phase_and_stale_signal_reach_the_job(client, queued):
+    job = await _claim(client, "w1")
+    jid = job["job_id"]
+    hb = await client.post(f"/worker/jobs/{jid}/heartbeat",
+                           json={"worker_id": "w1", "attempt": 1, "phase": "fetching"})
+    assert hb.status_code == 200
+    live = (await client.get(f"/jobs/{jid}")).json()
+    assert live["phase"] == "fetching" and live["heartbeat_stale"] is False
+    assert live["lease_expires_at"]
+    # The worker goes silent: two missed heartbeats mark the job stale.
+    jobs_db._db().execute("UPDATE jobs SET heartbeat_at = ? WHERE job_id = ?",
+                          (time.time() - 3 * settings.job_heartbeat_seconds, jid))
+    assert (await client.get(f"/jobs/{jid}")).json()["heartbeat_stale"] is True
+    _expire(jid)
+    await _claim(client, "w2")
+    retried = (await client.get(f"/jobs/{jid}")).json()
+    assert retried["phase"] is None and retried["heartbeat_stale"] is False
+
+
+def test_existing_jobs_db_gains_new_columns(tmp_path, monkeypatch):
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    old_schema = jobs_db._SCHEMA.replace(",\n  phase TEXT, heartbeat_at REAL", "")
+    assert old_schema != jobs_db._SCHEMA
+    sqlite3.connect(path).executescript(old_schema).connection.close()
+    monkeypatch.setattr(settings, "jobs_db_path", str(path))
+    jobs_db.reset_for_tests()
+    cols = {r["name"] for r in jobs_db._db().execute("PRAGMA table_info(jobs)")}
+    assert {"phase", "heartbeat_at"} <= cols
+    jobs_db.reset_for_tests()

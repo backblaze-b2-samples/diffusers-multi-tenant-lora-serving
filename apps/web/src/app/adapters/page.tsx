@@ -1,4 +1,5 @@
 import { AdaptersTable } from "@/components/adapters/adapters-table";
+import { PendingPublishNotice } from "@/components/adapters/pending-publish-notice";
 import { PublishAdapterDialog } from "@/components/adapters/publish-adapter-dialog";
 
 export default function AdaptersPage() {
@@ -14,6 +15,7 @@ export default function AdaptersPage() {
         </div>
         <PublishAdapterDialog />
       </div>
+      <PendingPublishNotice />
       <div className="animate-fade-in-up stagger-2">
         <AdaptersTable />
       </div>

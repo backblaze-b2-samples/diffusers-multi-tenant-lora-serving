@@ -19,6 +19,7 @@ import {
   getFileDetail,
   getFiles,
   getFileStats,
+  getFixturePublishStatus,
   getHealth,
   getJob,
   getJobOutput,
@@ -47,6 +48,7 @@ import type {
   FileMetadata,
   FileMetadataDetail,
   FileUrlResponse,
+  FixturePublishStatus,
   GenerationRequest,
   Job,
   RunDetail,
@@ -218,6 +220,29 @@ function invalidateRegistry(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: [...qk.all, "files"] });
 }
 
+/** Poll interval while the Adapters page waits for a publish started before a reload. */
+export const PENDING_PUBLISH_POLL_MS = 2_000;
+
+/**
+ * Polls one adapter's detail until `done`; a 404 just means the API has not
+ * written the tenant manifest yet, so it keeps polling instead of failing.
+ */
+export function usePendingAdapter(tenantId: string, adapter: string, done: boolean) {
+  return useQuery<AdapterDetail, ApiError>({
+    queryKey: [...qk.adapter(), tenantId, adapter],
+    queryFn: () => getAdapter(tenantId, adapter),
+    enabled: !!tenantId && !!adapter && !done,
+    retry: false,
+    refetchInterval: done ? false : PENDING_PUBLISH_POLL_MS,
+  });
+}
+
+/** Refresh the registry views once a publish lands outside the dialog. */
+export function useRefreshRegistry() {
+  const qc = useQueryClient();
+  return () => invalidateRegistry(qc);
+}
+
 export function usePublishAdapter() {
   const qc = useQueryClient();
   return useMutation<AdapterDetail, ApiError, PublishAdapterInput>({
@@ -226,11 +251,32 @@ export function usePublishAdapter() {
   });
 }
 
+/** Poll interval while the demo publish job is running. */
+export const FIXTURE_POLL_MS = 1_000;
+
+/**
+ * The background demo publish job. Polls while it runs, so progress survives a
+ * page reload; refreshes the registry once when a running job finishes.
+ */
+export function useFixturePublishStatus() {
+  const qc = useQueryClient();
+  return useQuery<FixturePublishStatus, ApiError>({
+    queryKey: qk.fixturePublish(),
+    queryFn: async () => {
+      const prev = qc.getQueryData<FixturePublishStatus>(qk.fixturePublish());
+      const next = await getFixturePublishStatus();
+      if (prev?.state === "running" && next.state !== "running") invalidateRegistry(qc);
+      return next;
+    },
+    refetchInterval: (q) => (q.state.data?.state === "running" ? FIXTURE_POLL_MS : false),
+  });
+}
+
 export function usePublishFixtures() {
   const qc = useQueryClient();
-  return useMutation<AdapterDetail[], ApiError, void>({
+  return useMutation<FixturePublishStatus, ApiError, void>({
     mutationFn: () => publishFixtures(),
-    onSuccess: () => invalidateRegistry(qc),
+    onSuccess: (status) => qc.setQueryData(qk.fixturePublish(), status),
   });
 }
 

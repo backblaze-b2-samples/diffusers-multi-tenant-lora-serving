@@ -155,6 +155,16 @@
     "post /fixtures/publish": {
       "route": "publishFixtures"
     },
+    "get /fixtures/publish": {
+      "route": "fixturePublishStatus",
+      "query": {
+        "name": "fixturePublish",
+        "segments": [
+          "fixtures",
+          "publish"
+        ]
+      }
+    },
     "post /tenants/{tenant_id}/generations": {
       "route": "createGeneration"
     },

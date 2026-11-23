@@ -36,6 +36,7 @@ export const API_CLIENT_ROUTES = {
   legacyFilePreview: { method: "get", path: "/files/{key}/preview" },
   fileStats: { method: "get", path: "/files/stats" },
   uploadActivity: { method: "get", path: "/files/stats/activity" },
+  fixturePublishStatus: { method: "get", path: "/fixtures/publish" },
   health: { method: "get", path: "/health" },
   jobs: { method: "get", path: "/jobs" },
   job: { method: "get", path: "/jobs/{job_id}" },

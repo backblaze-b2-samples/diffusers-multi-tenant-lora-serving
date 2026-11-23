@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompareForm } from "@/components/generate/compare-form";
 import { GenerateForm } from "@/components/generate/generate-form";
+import { NoTenantsNotice } from "@/components/generate/no-tenants-notice";
+import { NoWorkerNotice } from "@/components/generate/no-worker-notice";
 
 export default function GeneratePage() {
   return (
@@ -13,6 +15,8 @@ export default function GeneratePage() {
           presigned URL, loads it, generates and unloads it.
         </p>
       </div>
+      <NoTenantsNotice />
+      <NoWorkerNotice />
       <Card className="animate-fade-in-up stagger-2">
         <CardHeader className="border-b border-border py-4 px-5">
           <CardTitle className="card-title">Generate</CardTitle>

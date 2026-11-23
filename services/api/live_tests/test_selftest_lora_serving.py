@@ -122,10 +122,16 @@ def test_lora_serving_end_to_end(stack):
 
     # 1. Publish the fixtures; each weight re-read from B2 hashes to its manifest.
     t = time.time()
-    r = api.http.post("/fixtures/publish", timeout=1800)
-    assert r.status_code == 200, r.text
-    for d in r.json():
-        _record_adapter(ctx, d)
+    r = api.http.post("/fixtures/publish")
+    assert r.status_code == 202, r.text
+    job = r.json()
+    while job["state"] == "running" and time.time() - t < 1800:
+        time.sleep(5)
+        job = api.http.get("/fixtures/publish").json()
+    assert job["state"] == "succeeded", job
+    for ref in job["published"]:
+        tenant_, rest = ref.split("/", 1)
+        _record_adapter(ctx, api.http.get(f"/tenants/{tenant_}/adapters/{rest.split('@')[0]}").json())
     ev["publish_seconds"] = round(time.time() - t, 1)
     manifests = {t_: api.http.get(f"/tenants/{t_}/manifest").json() for t_ in ("acme", "globex")}
     assert set(manifests["acme"]["adapters"]) == {"pixel-art", "3d-render"}

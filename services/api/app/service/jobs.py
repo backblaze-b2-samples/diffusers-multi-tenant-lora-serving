@@ -167,9 +167,11 @@ def _stale(job_id: str) -> AppError:
 def heartbeat(job_id: str, hb: Heartbeat) -> HeartbeatAck:
     now = time.time()
     lease = now + settings.job_lease_seconds
-    fields = {"lease_expires_at": lease}
+    fields = {"lease_expires_at": lease, "heartbeat_at": now}
     if hb.step is not None:
         fields["step"] = hb.step
+    if hb.phase is not None:
+        fields["phase"] = hb.phase
     if not jobs_db.update_job_if_current(job_id, hb.worker_id, hb.attempt, fields):
         raise _stale(job_id)
     jobs_db.touch_worker(hb.worker_id, now)

@@ -21,9 +21,10 @@ export function HealthBanner() {
       className="flex items-center gap-2 border-b border-[color-mix(in_oklab,var(--attention)_30%,var(--border))] bg-[var(--attention-subtle)] px-4 py-2 text-xs text-[var(--attention)]"
     >
       <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-      <span className="font-medium">B2 not connected.</span>
+      <span className="font-medium">B2 not reachable.</span>
       <span className="text-foreground/70">
-        The API is running but can&apos;t reach Backblaze. Check your{" "}
+        The API is running but its last check of the bucket failed. A slow or
+        dropped network connection can cause this; if it persists, check your{" "}
         <code className="font-mono text-[11px]">.env</code> credentials and
         bucket region, then restart the API.
       </span>

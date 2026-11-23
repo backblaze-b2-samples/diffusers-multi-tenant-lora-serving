@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { GettingStarted } from "@/components/dashboard/getting-started";
 import { RecentJobsTable } from "@/components/dashboard/recent-jobs-table";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { TimingCard } from "@/components/dashboard/timing-card";
@@ -24,6 +25,7 @@ export default function DashboardPage() {
           </Link>
         </Button>
       </div>
+      <GettingStarted />
       <StatsCards />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="animate-fade-in-up stagger-3">

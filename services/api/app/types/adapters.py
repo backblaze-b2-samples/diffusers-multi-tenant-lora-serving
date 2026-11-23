@@ -131,3 +131,24 @@ class VerifyResult(ResponseModel):
     size_expected: int
     size_actual: int
     match: bool
+
+
+class FixturePublishStatus(ResponseModel):
+    """Progress of the background "publish demo adapters" job.
+
+    One job runs at a time per API process. `idle` means none has run since the
+    API started; the last finished job's outcome stays readable until the next
+    one starts, so a reload still shows what happened.
+    """
+
+    state: Literal["idle", "running", "succeeded", "failed"]
+    stage: str = Field(description="What the job is doing now, in plain words.")
+    adapters_total: int
+    adapters_done: int = Field(description="Adapters published or already present.")
+    bytes_total: int = Field(description="Sum of every demo adapter's size.")
+    bytes_done: int = Field(description="Bytes B2 has accepted, plus skipped adapters.")
+    published: list[str] = Field(description="tenant/adapter@version published by this job.")
+    error: str | None = None
+    error_code: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None

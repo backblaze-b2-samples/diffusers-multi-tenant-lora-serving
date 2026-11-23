@@ -6,6 +6,7 @@ import { FileJson, Library } from "lucide-react";
 import type { LibraryEntry } from "@diffusers-multi-tenant-lora-serving/shared";
 
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingNotice } from "@/components/common/loading-notice";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,7 +79,10 @@ export function LibraryView() {
         {error ? (
           <ErrorState error={error} onRetry={() => refetch()} />
         ) : isLoading ? (
-          <Skeleton className="h-40 w-full" />
+          <div className="space-y-3">
+            <LoadingNotice subject="the library" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         ) : entries.length === 0 ? (
           <EmptyState icon={Library} title="Nothing under the app prefix yet" description="Publish adapters and generate images to fill the library." />
         ) : (

@@ -19,13 +19,14 @@ Group jobs into runs, recover a killed worker's job on another worker with the s
 - `services/api/app/service/reports.py`
 
 ## Inputs
-- Worker heartbeats (`attempt`, `step`), completions and failures
+- Worker heartbeats (`attempt`, `step`, `phase`), completions and failures
 
 ## Outputs
 - `<APP_PREFIX>reports/<run-id>/adapters.json`: `run_id`, `created_at`, `base_model`, `device_summary`, `jobs[]` (adapter, sha256, worker, attempt, state, cache, bytes fetched, fetch/load/generate/unload/total ms, seed, steps, size, output key and sha256) and `summary` (`jobs`, `succeeded`, `failed`, `cache_hits`, `load_ms_p50`, `generate_ms_p50`, `retried_jobs`)
 
 ## Flow
-- A claim leases the job for `JOB_LEASE_SECONDS`; the worker heartbeats every `JOB_HEARTBEAT_SECONDS`
+- A claim leases the job for `JOB_LEASE_SECONDS`; the worker heartbeats every `JOB_HEARTBEAT_SECONDS` and once more on each phase change (`verifying`, `fetching`, `loading`, `generating`, `unloading`, `uploading`)
+- A running job exposes `phase`, `lease_expires_at` and `heartbeat_stale` (no heartbeat for two intervals), so the UI can say the worker stopped responding before the lease runs out
 - A worker that dies stops heartbeating; the next claim re-queues its job (attempt + 1, same seed) up to `JOB_MAX_ATTEMPTS`, then fails it `lease_exhausted`
 - Completions are accepted only from the current `(worker_id, attempt)`; a late one gets 409 `stale_attempt`
 - When a run's last job is terminal, the report is written (and rewritten if more jobs join the run)

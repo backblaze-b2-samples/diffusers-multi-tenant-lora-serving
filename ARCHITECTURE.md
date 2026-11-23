@@ -180,6 +180,7 @@ still in step.
 | `GET /files/{key}/preview` | `FileUrlResponse` | `legacyFilePreview` |
 | `GET /files/stats` | `UploadStats` | `fileStats` |
 | `GET /files/stats/activity` | `DailyUploadCount[]` | `uploadActivity` |
+| `GET /fixtures/publish` | `FixturePublishStatus` | `fixturePublishStatus` |
 | `GET /health` | `HealthStatus` | `health` |
 | `GET /jobs` | `Job[]` | `jobs` |
 | `GET /jobs/{job_id}` | `Job` | `job` |
@@ -196,7 +197,7 @@ still in step.
 | `GET /tenants/{tenant_id}/manifest` | `TenantManifest` | `tenantManifest` |
 | `GET /workers` | `WorkerStatus[]` | `workers` |
 | `PATCH /tenants/{tenant_id}/adapters/{adapter}` | `AdapterDetail` | `updateAdapter` |
-| `POST /fixtures/publish` | `AdapterDetail[]` | `publishFixtures` |
+| `POST /fixtures/publish` | - | `publishFixtures` |
 | `POST /runs/compare` | - | `compareAdapters` |
 | `POST /tenants/{tenant_id}/adapters` | - | `publishAdapter` |
 | `POST /tenants/{tenant_id}/adapters/{adapter}/versions/{version}/verify` | `VerifyResult` | `verifyAdapterVersion` |

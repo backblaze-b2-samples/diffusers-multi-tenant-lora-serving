@@ -91,3 +91,11 @@ def test_traversal_keys_are_rejected():
     validate_key("uploads/file.txt")
     validate_key("photos/2026/vacation.jpg")
     validate_key("readme.md")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("origin", ["http://localhost:3000", "http://127.0.0.1:3000"])
+async def test_both_loopback_dev_origins_are_allowed(client, origin):
+    """Opening the app as 127.0.0.1 must not look like "can't reach the API"."""
+    response = await client.get("/health", headers={"Origin": origin})
+    assert response.headers.get("access-control-allow-origin") == origin

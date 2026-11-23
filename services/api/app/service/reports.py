@@ -6,6 +6,8 @@ and finishing them rewrites the report, so it always covers the whole run.
 
 import logging
 import statistics
+import time
+from datetime import UTC, datetime
 
 from app.config import settings
 from app.repo import adapter_store, jobs_db
@@ -15,6 +17,21 @@ from app.types import AdapterReport, Job, JobTimings, ReportJob, ReportSummary
 
 logger = logging.getLogger(__name__)
 TERMINAL = ("succeeded", "failed")
+
+
+def _live_fields(row: dict) -> dict:
+    """Phase, heartbeat staleness and lease expiry: only meaningful while running."""
+    if row["state"] != "running":
+        return {}
+    beat = row.get("heartbeat_at")
+    lease = row.get("lease_expires_at")
+    return {
+        "phase": row.get("phase"),
+        "heartbeat_stale": beat is not None
+        and time.time() - beat > 2 * settings.job_heartbeat_seconds,
+        "lease_expires_at": datetime.fromtimestamp(lease, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if lease is not None else None,
+    }
 
 
 def to_job(row: dict) -> Job:
@@ -36,7 +53,7 @@ def to_job(row: dict) -> Job:
         output_key=row["output_key"], output_sha256=row["output_sha256"],
         adapters_after_unload=row["adapters_after_unload"], error_code=row["error_code"],
         error_message=row["error_message"], created_at=row["created_at"],
-        finished_at=row["finished_at"],
+        finished_at=row["finished_at"], **_live_fields(row),
     )
 
 

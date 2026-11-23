@@ -46,9 +46,11 @@ class DispatcherClient:
         body = {"worker_id": self.worker_id, "wait_seconds": wait_seconds}
         return self._post("/worker/jobs/claim", body, timeout=wait_seconds + 15.0)["job"]
 
-    def heartbeat(self, job_id: str, attempt: int, step: int | None, total: int | None) -> dict:
+    def heartbeat(self, job_id: str, attempt: int, step: int | None, total: int | None,
+                  phase: str | None = None) -> dict:
         return self._post(f"/worker/jobs/{job_id}/heartbeat", {
             "worker_id": self.worker_id, "attempt": attempt, "step": step, "total_steps": total,
+            "phase": phase,
         })
 
     def complete(self, job_id: str, attempt: int, result: dict[str, Any]) -> dict:

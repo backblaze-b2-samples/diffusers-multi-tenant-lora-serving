@@ -1,16 +1,23 @@
 from fastapi import APIRouter
 
-from app.service.fixtures import publish_fixtures
-from app.types import AdapterDetail
+from app.service import fixture_job
+from app.types import FixturePublishStatus
 
 router = APIRouter()
 
 
-@router.post("/fixtures/publish", response_model=list[AdapterDetail])
+@router.post("/fixtures/publish", response_model=FixturePublishStatus, status_code=202)
 def publish_demo_adapters():
-    """Publish the pinned demo adapters (acme: 2, globex: 1). Skips existing versions.
+    """Start publishing the pinned demo adapters (acme: 2, globex: 1) in the background.
 
-    Downloads each pinned file from the Hugging Face Hub once, so the first call
-    takes as long as fetching a few hundred MB.
+    Returns at once with the job's status; poll `GET /fixtures/publish` for
+    progress. Versions that already exist are skipped, and a call while a job
+    is running returns that job instead of starting another.
     """
-    return publish_fixtures()
+    return fixture_job.start()
+
+
+@router.get("/fixtures/publish", response_model=FixturePublishStatus)
+def demo_publish_status():
+    """The running or last finished demo publish job (`idle` if none ran yet)."""
+    return fixture_job.status()

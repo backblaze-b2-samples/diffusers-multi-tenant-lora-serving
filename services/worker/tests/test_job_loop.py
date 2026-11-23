@@ -50,3 +50,9 @@ def test_stale_lease_drops_result_and_unloads(client, cache, engine, pipe, dispa
     assert run_job(make_job(), client, cache, engine, 60) is None
     assert dispatcher.completed == []
     assert pipe.get_list_adapters() == {"unet": []}
+
+
+def test_heartbeats_report_each_phase_in_order(client, cache, engine, dispatcher):
+    run_job(make_job(), client, cache, engine, 60)
+    phases = [h["phase"] for h in dispatcher.heartbeats if h.get("phase")]
+    assert phases == ["verifying", "fetching", "loading", "generating", "unloading", "uploading"]

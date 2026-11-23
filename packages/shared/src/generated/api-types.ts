@@ -190,6 +190,31 @@ export interface FileUrlResponse {
   url: string;
 }
 
+/**
+ * Progress of the background "publish demo adapters" job. One job runs at
+ * a time per API process. `idle` means none has run since the API started;
+ * the last finished job's outcome stays readable until the next one
+ * starts, so a reload still shows what happened.
+ */
+export interface FixturePublishStatus {
+  /** Adapters published or already present. */
+  adapters_done: number;
+  adapters_total: number;
+  /** Bytes B2 has accepted, plus skipped adapters. */
+  bytes_done: number;
+  /** Sum of every demo adapter's size. */
+  bytes_total: number;
+  error: string | null;
+  error_code: string | null;
+  finished_at: string | null;
+  /** tenant/adapter@version published by this job. */
+  published: string[];
+  /** What the job is doing now, in plain words. */
+  stage: string;
+  started_at: string | null;
+  state: string;
+}
+
 export interface GenerationRequest {
   /**
    * `name`, `name@version`, `owner/name[@version]`, or null for the base
@@ -227,6 +252,7 @@ export interface HealthStatus {
 
 export interface Heartbeat {
   attempt: number;
+  phase?: string | null;
   step?: number | null;
   total_steps?: number | null;
   worker_id: string;
@@ -247,11 +273,17 @@ export interface Job {
   error_code: string | null;
   error_message: string | null;
   finished_at: string | null;
+  /** Running, but the claiming worker has missed two heartbeats in a row. */
+  heartbeat_stale: boolean;
   height: number;
   job_id: string;
+  /** While running: when the job is re-queued if heartbeats stop. */
+  lease_expires_at: string | null;
   negative_prompt: string | null;
   output_key: string;
   output_sha256: string | null;
+  /** Worker's current phase while running, from its heartbeats. */
+  phase: string | null;
   prompt: string;
   run_id: string;
   scale: number | null;

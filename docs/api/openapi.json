@@ -871,6 +871,112 @@
         "title": "FileUrlResponse",
         "type": "object"
       },
+      "FixturePublishStatus": {
+        "description": "Progress of the background \"publish demo adapters\" job.\n\nOne job runs at a time per API process. `idle` means none has run since the\nAPI started; the last finished job's outcome stays readable until the next\none starts, so a reload still shows what happened.",
+        "properties": {
+          "adapters_done": {
+            "description": "Adapters published or already present.",
+            "title": "Adapters Done",
+            "type": "integer"
+          },
+          "adapters_total": {
+            "title": "Adapters Total",
+            "type": "integer"
+          },
+          "bytes_done": {
+            "description": "Bytes B2 has accepted, plus skipped adapters.",
+            "title": "Bytes Done",
+            "type": "integer"
+          },
+          "bytes_total": {
+            "description": "Sum of every demo adapter's size.",
+            "title": "Bytes Total",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "published": {
+            "description": "tenant/adapter@version published by this job.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Published",
+            "type": "array"
+          },
+          "stage": {
+            "description": "What the job is doing now, in plain words.",
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "enum": [
+              "idle",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "stage",
+          "adapters_total",
+          "adapters_done",
+          "bytes_total",
+          "bytes_done",
+          "published",
+          "error",
+          "error_code",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "FixturePublishStatus",
+        "type": "object"
+      },
       "GenerationRequest": {
         "properties": {
           "adapter": {
@@ -1017,6 +1123,25 @@
           "attempt": {
             "title": "Attempt",
             "type": "integer"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "enum": [
+                  "verifying",
+                  "fetching",
+                  "loading",
+                  "generating",
+                  "unloading",
+                  "uploading"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
           },
           "step": {
             "anyOf": [
@@ -1171,6 +1296,12 @@
             ],
             "title": "Finished At"
           },
+          "heartbeat_stale": {
+            "default": false,
+            "description": "Running, but the claiming worker has missed two heartbeats in a row.",
+            "title": "Heartbeat Stale",
+            "type": "boolean"
+          },
           "height": {
             "title": "Height",
             "type": "integer"
@@ -1178,6 +1309,18 @@
           "job_id": {
             "title": "Job Id",
             "type": "string"
+          },
+          "lease_expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "While running: when the job is re-queued if heartbeats stop.",
+            "title": "Lease Expires At"
           },
           "negative_prompt": {
             "anyOf": [
@@ -1204,6 +1347,26 @@
               }
             ],
             "title": "Output Sha256"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "enum": [
+                  "verifying",
+                  "fetching",
+                  "loading",
+                  "generating",
+                  "unloading",
+                  "uploading"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Worker's current phase while running, from its heartbeats.",
+            "title": "Phase"
           },
           "prompt": {
             "title": "Prompt",
@@ -1324,6 +1487,9 @@
           "prompt",
           "negative_prompt",
           "step",
+          "phase",
+          "heartbeat_stale",
+          "lease_expires_at",
           "timings",
           "cache",
           "bytes_fetched",
@@ -2952,19 +3118,35 @@
       }
     },
     "/fixtures/publish": {
-      "post": {
-        "description": "Publish the pinned demo adapters (acme: 2, globex: 1). Skips existing versions.\n\nDownloads each pinned file from the Hugging Face Hub once, so the first call\ntakes as long as fetching a few hundred MB.",
-        "operationId": "publish_demo_adapters_fixtures_publish_post",
+      "get": {
+        "description": "The running or last finished demo publish job (`idle` if none ran yet).",
+        "operationId": "demo_publish_status_fixtures_publish_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AdapterDetail"
-                  },
-                  "title": "Response Publish Demo Adapters Fixtures Publish Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/FixturePublishStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Demo Publish Status",
+        "tags": [
+          "adapters"
+        ]
+      },
+      "post": {
+        "description": "Start publishing the pinned demo adapters (acme: 2, globex: 1) in the background.\n\nReturns at once with the job's status; poll `GET /fixtures/publish` for\nprogress. Versions that already exist are skipped, and a call while a job\nis running returns that job instead of starting another.",
+        "operationId": "publish_demo_adapters_fixtures_publish_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixturePublishStatus"
                 }
               }
             },

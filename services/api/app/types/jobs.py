@@ -10,6 +10,10 @@ JobState = Literal["queued", "running", "succeeded", "failed"]
 CacheResult = Literal["hit", "miss", "none"]
 Steps = Literal[15, 25, 40]
 Size = Literal[768, 1024]
+# What the claiming worker is doing right now, reported on every heartbeat.
+# "fetching" streams the presigned GET and hashes it (sha256 verify) in one pass;
+# "verifying" re-hashes a cache hit.
+JobPhase = Literal["verifying", "fetching", "loading", "generating", "unloading", "uploading"]
 
 
 class GenerationRequest(BaseModel):
@@ -62,6 +66,16 @@ class Job(ResponseModel):
     prompt: str
     negative_prompt: str | None
     step: int | None = Field(description="Last denoising step a heartbeat reported.")
+    phase: JobPhase | None = Field(
+        default=None, description="Worker's current phase while running, from its heartbeats."
+    )
+    heartbeat_stale: bool = Field(
+        default=False,
+        description="Running, but the claiming worker has missed two heartbeats in a row.",
+    )
+    lease_expires_at: str | None = Field(
+        default=None, description="While running: when the job is re-queued if heartbeats stop."
+    )
     timings: JobTimings | None
     cache: CacheResult | None
     bytes_fetched: int | None
@@ -206,6 +220,7 @@ class Heartbeat(BaseModel):
     attempt: int
     step: int | None = None
     total_steps: int | None = None
+    phase: JobPhase | None = None
 
 
 class HeartbeatAck(ResponseModel):

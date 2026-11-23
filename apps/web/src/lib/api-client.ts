@@ -10,6 +10,7 @@ import type {
   FileMetadata,
   FileMetadataDetail,
   FileUrlResponse,
+  FixturePublishStatus,
   GenerationRequest,
   HealthStatus,
   Job,
@@ -103,12 +104,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw networkError();
   }
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(
-      typeof body.detail === "string" ? body.detail : `API error: ${res.status}`,
-      res.status,
-      typeof body.code === "string" ? body.code : null,
-    );
+    throw apiErrorFromBody(res.status, await res.json().catch(() => ({})));
   }
   return res.json();
 }
@@ -300,24 +296,69 @@ export interface PublishAdapterInput {
   hf_filename?: string;
   hf_revision?: string;
   file?: File | null;
+  /** Browser-to-API upload progress; `sent === total` means the API now writes to B2. */
+  onUploadProgress?: (sent: number, total: number) => void;
+}
+
+/** Turn a non-2xx response body into the same ApiError `apiFetch` throws. */
+function apiErrorFromBody(status: number, body: { detail?: unknown; code?: unknown }): ApiError {
+  return new ApiError(
+    typeof body.detail === "string" ? body.detail : `API error: ${status}`,
+    status,
+    typeof body.code === "string" ? body.code : null,
+  );
+}
+
+/**
+ * XMLHttpRequest instead of fetch() for a file upload: fetch() exposes no
+ * upload progress, and a large adapter takes a while on a slow uplink.
+ */
+function xhrUpload<T>(method: string, path: string, body: FormData, onProgress: (sent: number, total: number) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, `${API_BASE}${path}`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded, e.total);
+    };
+    xhr.upload.onload = () => onProgress(1, 1);
+    xhr.onerror = () => reject(networkError());
+    xhr.onload = () => {
+      let parsed: unknown = {};
+      try {
+        parsed = JSON.parse(xhr.responseText);
+      } catch {
+        /* non-JSON body: handled below */
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(parsed as T);
+      else reject(apiErrorFromBody(xhr.status, (parsed ?? {}) as { detail?: unknown; code?: unknown }));
+    };
+    xhr.send(body);
+  });
 }
 
 /** Multipart POST: the API reads form fields and an optional file part. */
 export function publishAdapter(input: PublishAdapterInput) {
   const form = new FormData();
-  const { tenant_id, file, ...fields } = input;
+  const { tenant_id, file, onUploadProgress, ...fields } = input;
   for (const [name, value] of Object.entries(fields)) {
     if (value !== undefined && value !== null && value !== "") form.append(name, String(value));
   }
-  if (input.source === "upload" && file) form.append("file", file, file.name);
-  return apiFetch<AdapterDetail>(fillPath(R.publishAdapter.path, { tenant_id }), {
-    method: R.publishAdapter.method.toUpperCase(),
-    body: form,
-  });
+  const uploading = input.source === "upload" && !!file;
+  if (uploading) form.append("file", file, file.name);
+  const path = fillPath(R.publishAdapter.path, { tenant_id });
+  const method = R.publishAdapter.method.toUpperCase();
+  if (uploading && onUploadProgress && typeof XMLHttpRequest !== "undefined") {
+    return xhrUpload<AdapterDetail>(method, path, form, onUploadProgress);
+  }
+  return apiFetch<AdapterDetail>(path, { method, body: form });
 }
 
+/** Starts the background demo publish job; returns its status at once. */
 export const publishFixtures = () =>
-  apiFetch<AdapterDetail[]>(R.publishFixtures.path, jsonInit(R.publishFixtures.method));
+  apiFetch<FixturePublishStatus>(R.publishFixtures.path, jsonInit(R.publishFixtures.method));
+
+export const getFixturePublishStatus = () =>
+  apiFetch<FixturePublishStatus>(R.fixturePublishStatus.path);
 
 export const updateAdapter = (tenant_id: string, adapter: string, patch: AdapterUpdate) =>
   apiFetch<AdapterDetail>(

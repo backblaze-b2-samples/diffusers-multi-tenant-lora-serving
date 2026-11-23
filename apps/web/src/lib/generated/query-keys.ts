@@ -27,6 +27,7 @@ export const qk = {
   preview: (key: string) => [...qk.all, "preview", key] as const,
   stats: () => [...qk.all, "stats"] as const,
   uploadActivity: (days?: number) => [...qk.all, "stats", "activity", days ?? 7] as const,
+  fixturePublish: () => [...qk.all, "fixtures", "publish"] as const,
   health: () => [...qk.all, "health"] as const,
   jobs: (tenant_id?: string, state?: string) => [...qk.all, "jobs", tenant_id, state] as const,
   job: () => [...qk.all, "jobs", "detail"] as const,

@@ -26,7 +26,7 @@ function job(id: string, cache: Job["cache"], state: Job["state"] = "succeeded")
     timings: { fetch_ms: 1, load_ms: 2, generate_ms: 3, unload_ms: 4, total_ms: 10 },
     cache, bytes_fetched: 0, sha256_verified: true, output_key: "k", output_sha256: null,
     adapters_after_unload: [], error_code: null, error_message: null, created_at: "",
-    finished_at: null,
+    finished_at: null, phase: null, heartbeat_stale: false, lease_expires_at: null,
   };
 }
 

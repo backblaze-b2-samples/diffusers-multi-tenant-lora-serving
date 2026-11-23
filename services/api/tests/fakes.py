@@ -24,12 +24,17 @@ class FakeStore:
         self.ops: list[tuple[str, str]] = []
         self.presigned: list[tuple[str, str]] = []
         self.fail_on_put: str | None = None
+        self.fail_on_upload: str | None = None
 
     def _etag(self, key):
         return '"' + hashlib.md5(self.objects[key]).hexdigest() + '"'
 
-    def upload_stream(self, key, fileobj, content_type):
+    def upload_stream(self, key, fileobj, content_type, on_bytes=None):
+        if self.fail_on_upload and key.endswith(self.fail_on_upload):
+            raise RuntimeError("B2 upload failed: Read timeout on endpoint URL")
         data = fileobj.read()
+        if on_bytes:
+            on_bytes(len(data))
         self.ops.append(("upload", key))
         self.objects[key] = data
         return hashlib.sha256(data).hexdigest(), len(data)

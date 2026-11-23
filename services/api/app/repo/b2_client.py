@@ -1,6 +1,7 @@
 import functools
 import mimetypes
 import time
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from threading import Lock
 from urllib.parse import quote
@@ -37,22 +38,71 @@ def _public_url(key: str) -> str | None:
     return f"{settings.b2_public_url_base}/{quote(key, safe='/')}"
 
 
-@functools.lru_cache(maxsize=1)
-def get_s3_client():
+def _client(config: Config):
     return boto3.client(
         "s3",
         endpoint_url=settings.endpoint_url,
         region_name=settings.b2_region,
         aws_access_key_id=settings.b2_application_key_id,
         aws_secret_access_key=settings.b2_application_key,
-        config=Config(
+        config=config,
+    )
+
+
+@functools.lru_cache(maxsize=1)
+def get_s3_client():
+    """The client for small, latency-sensitive calls (manifests, lists, heads)."""
+    return _client(
+        Config(
             connect_timeout=5,
             read_timeout=30,
             retries={"mode": "standard", "total_max_attempts": 3},
             signature_version="s3v4",
             user_agent_extra="b2ai-diffusers-lora-weights-hub",
-        ),
+        )
     )
+
+
+# Adapter weights are hundreds of MB and may leave over an ordinary home uplink
+# (a few MB/s). They get their own client so (a) a multipart upload cannot take
+# every pooled connection the dispatcher's manifest and list calls need, and
+# (b) one slow part has a timeout and retry budget sized for bulk transfer
+# instead of for a manifest read. Concurrency is set in adapter_store.
+UPLOAD_MAX_CONCURRENCY = 4
+
+
+@functools.lru_cache(maxsize=1)
+def get_upload_client():
+    """The client for adapter weight uploads (multipart, bulk, slow links)."""
+    return _client(
+        Config(
+            connect_timeout=10,
+            read_timeout=120,
+            retries={"mode": "adaptive", "total_max_attempts": 8},
+            max_pool_connections=UPLOAD_MAX_CONCURRENCY + 2,
+            tcp_keepalive=True,
+            signature_version="s3v4",
+            user_agent_extra="b2ai-diffusers-lora-weights-hub",
+        )
+    )
+
+
+# Uploads in flight right now. While one saturates the uplink, a health probe
+# can time out although B2 and the credentials are fine (see check_connectivity).
+_uploads_in_flight = 0
+_uploads_lock = Lock()
+
+
+@contextmanager
+def upload_in_flight():
+    global _uploads_in_flight
+    with _uploads_lock:
+        _uploads_in_flight += 1
+    try:
+        yield
+    finally:
+        with _uploads_lock:
+            _uploads_in_flight -= 1
 
 
 # Cache the B2 connectivity result briefly so uptime monitors polling /health
@@ -63,17 +113,26 @@ _health_lock = Lock()
 
 
 def check_connectivity() -> bool:
+    """True when the bucket answers a head request.
+
+    A timeout or dropped connection while our own adapter upload saturates the
+    link keeps the last known answer; a real refusal (ClientError) always wins.
+    """
     global _health_cache
     now = time.monotonic()
     with _health_lock:
-        if _health_cache is not None and now - _health_cache[0] < _HEALTH_TTL_SECONDS:
-            return _health_cache[1]
+        cached = _health_cache
+    if cached is not None and now - cached[0] < _HEALTH_TTL_SECONDS:
+        return cached[1]
     try:
-        client = get_s3_client()
-        client.head_bucket(Bucket=settings.b2_bucket_name)
+        get_s3_client().head_bucket(Bucket=settings.b2_bucket_name)
         ok = True
-    except Exception:
+    except ClientError:
         ok = False
+    except Exception:
+        with _uploads_lock:
+            busy = _uploads_in_flight > 0
+        ok = bool(busy and cached is not None and cached[1])
     with _health_lock:
         _health_cache = (time.monotonic(), ok)
     return ok

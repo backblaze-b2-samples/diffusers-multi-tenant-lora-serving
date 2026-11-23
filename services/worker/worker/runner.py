@@ -25,19 +25,21 @@ class JobFailed(Exception):
 
 
 class Heartbeater:
-    """Background heartbeats carrying the attempt and the current step."""
+    """Background heartbeats carrying the attempt, the current phase and step."""
 
     def __init__(self, client: DispatcherClient, job: dict, every: float):
         self.client, self.job, self.every = client, job, every
         self.step: int | None = None
         self.total: int | None = None
+        self.phase: str | None = None
         self.lost = threading.Event()
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def beat(self) -> None:
         try:
-            self.client.heartbeat(self.job["job_id"], self.job["attempt"], self.step, self.total)
+            self.client.heartbeat(self.job["job_id"], self.job["attempt"], self.step, self.total,
+                                  self.phase)
         except StaleAttempt:
             self.lost.set()
         except Exception as e:  # transient: the lease absorbs a missed beat
@@ -46,6 +48,11 @@ class Heartbeater:
     def _run(self) -> None:
         while not self._stop.wait(self.every):
             self.beat()
+
+    def set_phase(self, phase: str) -> None:
+        """Report a phase change right away, so the UI does not wait a full beat."""
+        self.phase = phase
+        self.beat()
 
     def on_step(self, step: int, total: int) -> None:
         self.step, self.total = step, total
@@ -85,11 +92,13 @@ def run_job(job: dict, client: DispatcherClient, cache: AdapterCache, engine: En
             check_tenant(job)
             if adapter:
                 t = time.perf_counter()
+                hb.set_phase("verifying")
                 path = cache.lookup(job["tenant_id"], adapter["sha256"], adapter["size_bytes"])
                 if path is not None:
                     result["cache"] = "hit"
                 else:
                     path = cache.path_for(job["tenant_id"], adapter["sha256"])
+                    hb.set_phase("fetching")
                     try:
                         result["bytes_fetched"] = download_verified(
                             client.http, adapter["url"], path, adapter["sha256"],
@@ -104,19 +113,23 @@ def run_job(job: dict, client: DispatcherClient, cache: AdapterCache, engine: En
                 result["fetch_ms"] = elapsed_ms(t)
                 t = time.perf_counter()
                 loaded = True
+                hb.set_phase("loading")
                 engine.load_adapter(path, name, adapter["scale"])
                 result["load_ms"] = elapsed_ms(t)
             t = time.perf_counter()
+            hb.set_phase("generating")
             png = engine.generate(job["prompt"], job.get("negative_prompt"), job["seed"],
                                   job["steps"], job["width"], job["height"], hb.on_step)
             result["generate_ms"] = elapsed_ms(t)
             if adapter:
                 t = time.perf_counter()
+                hb.set_phase("unloading")
                 result["adapters_after_unload"] = engine.unload_adapter(name)
                 loaded = False
                 result["unload_ms"] = elapsed_ms(t)
             else:
                 result["adapters_after_unload"] = engine.loaded_adapters()
+            hb.set_phase("uploading")
             client.put_output(job["output_url"], png)
             result["output_sha256"] = hashlib.sha256(png).hexdigest()
         return client.complete(job_id, attempt, result)
