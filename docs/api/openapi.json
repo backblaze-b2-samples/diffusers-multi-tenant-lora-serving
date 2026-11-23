@@ -1,6 +1,566 @@
 {
   "components": {
     "schemas": {
+      "AdapterDetail": {
+        "properties": {
+          "adapter": {
+            "title": "Adapter",
+            "type": "string"
+          },
+          "current_version": {
+            "title": "Current Version",
+            "type": "string"
+          },
+          "default_scale": {
+            "title": "Default Scale",
+            "type": "number"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "license": {
+            "title": "License",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "trigger_words": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Trigger Words",
+            "type": "array"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterVersion"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "adapter",
+          "display_name",
+          "current_version",
+          "default_scale",
+          "trigger_words",
+          "license",
+          "size_bytes",
+          "versions"
+        ],
+        "title": "AdapterDetail",
+        "type": "object"
+      },
+      "AdapterReport": {
+        "description": "`reports/<run-id>/adapters.json`: per-job timings and cache behaviour.",
+        "properties": {
+          "base_model": {
+            "title": "Base Model",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "device_summary": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Device Summary",
+            "type": "array"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/ReportJob"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ReportSummary"
+          }
+        },
+        "required": [
+          "run_id",
+          "created_at",
+          "base_model",
+          "device_summary",
+          "jobs",
+          "summary"
+        ],
+        "title": "AdapterReport",
+        "type": "object"
+      },
+      "AdapterSource": {
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "repo_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Id"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "type": {
+            "enum": [
+              "huggingface",
+              "upload"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "AdapterSource",
+        "type": "object"
+      },
+      "AdapterSummary": {
+        "properties": {
+          "adapter": {
+            "title": "Adapter",
+            "type": "string"
+          },
+          "current_version": {
+            "title": "Current Version",
+            "type": "string"
+          },
+          "default_scale": {
+            "title": "Default Scale",
+            "type": "number"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "license": {
+            "title": "License",
+            "type": "string"
+          },
+          "size_bytes": {
+            "description": "Size of the current version's weight file.",
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "version_count": {
+            "title": "Version Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "adapter",
+          "display_name",
+          "current_version",
+          "version_count",
+          "default_scale",
+          "license",
+          "size_bytes"
+        ],
+        "title": "AdapterSummary",
+        "type": "object"
+      },
+      "AdapterUpdate": {
+        "properties": {
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version"
+          },
+          "default_scale": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Scale"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "trigger_words": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Words"
+          }
+        },
+        "title": "AdapterUpdate",
+        "type": "object"
+      },
+      "AdapterVersion": {
+        "properties": {
+          "base_model": {
+            "$ref": "#/components/schemas/BaseModelRef"
+          },
+          "is_current": {
+            "title": "Is Current",
+            "type": "boolean"
+          },
+          "license": {
+            "title": "License",
+            "type": "string"
+          },
+          "manifest_key": {
+            "title": "Manifest Key",
+            "type": "string"
+          },
+          "published_at": {
+            "title": "Published At",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdapterSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "weight_key": {
+            "title": "Weight Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256",
+          "size_bytes",
+          "base_model",
+          "published_at",
+          "source",
+          "license",
+          "manifest_key",
+          "weight_key",
+          "is_current"
+        ],
+        "title": "AdapterVersion",
+        "type": "object"
+      },
+      "BaseModelRef": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "BaseModelRef",
+        "type": "object"
+      },
+      "Body_publish_adapter_tenants__tenant_id__adapters_post": {
+        "properties": {
+          "adapter": {
+            "title": "Adapter",
+            "type": "string"
+          },
+          "default_scale": {
+            "default": 1.0,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Default Scale",
+            "type": "number"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "hf_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hf Filename"
+          },
+          "hf_repo_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hf Repo Id"
+          },
+          "hf_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hf Revision"
+          },
+          "license": {
+            "title": "License",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "huggingface",
+              "upload"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "trigger_words": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Comma separated.",
+            "title": "Trigger Words"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "adapter",
+          "version",
+          "license",
+          "source"
+        ],
+        "title": "Body_publish_adapter_tenants__tenant_id__adapters_post",
+        "type": "object"
+      },
+      "ClaimRequest": {
+        "properties": {
+          "wait_seconds": {
+            "default": 0,
+            "maximum": 25.0,
+            "minimum": 0.0,
+            "title": "Wait Seconds",
+            "type": "integer"
+          },
+          "worker_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id"
+        ],
+        "title": "ClaimRequest",
+        "type": "object"
+      },
+      "ClaimResponse": {
+        "properties": {
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkerJob"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "title": "ClaimResponse",
+        "type": "object"
+      },
+      "CompareRequest": {
+        "properties": {
+          "adapters": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Adapters",
+            "type": "array"
+          },
+          "include_base": {
+            "default": true,
+            "title": "Include Base",
+            "type": "boolean"
+          },
+          "prompt": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "size": {
+            "default": 1024,
+            "enum": [
+              768,
+              1024
+            ],
+            "title": "Size",
+            "type": "integer"
+          },
+          "steps": {
+            "default": 25,
+            "enum": [
+              15,
+              25,
+              40
+            ],
+            "title": "Steps",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "adapters",
+          "prompt"
+        ],
+        "title": "CompareRequest",
+        "type": "object"
+      },
       "DailyUploadCount": {
         "description": "One day's upload count, for the dashboard activity chart.",
         "properties": {
@@ -18,6 +578,22 @@
           "uploads"
         ],
         "title": "DailyUploadCount",
+        "type": "object"
+      },
+      "DeleteAdapterResult": {
+        "properties": {
+          "deleted_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Deleted Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deleted_keys"
+        ],
+        "title": "DeleteAdapterResult",
         "type": "object"
       },
       "DeleteFileResponse": {
@@ -280,71 +856,6 @@
         "title": "FileMetadataDetail",
         "type": "object"
       },
-      "FileUploadResponse": {
-        "description": "The stored object as `POST /upload/verify` reports it back.",
-        "properties": {
-          "content_type": {
-            "title": "Content Type",
-            "type": "string"
-          },
-          "filename": {
-            "title": "Filename",
-            "type": "string"
-          },
-          "key": {
-            "title": "Key",
-            "type": "string"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FileMetadataDetail"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Rich metadata, when extraction succeeded for this type."
-          },
-          "size_bytes": {
-            "title": "Size Bytes",
-            "type": "integer"
-          },
-          "size_human": {
-            "title": "Size Human",
-            "type": "string"
-          },
-          "uploaded_at": {
-            "format": "date-time",
-            "title": "Uploaded At",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Public object URL when the bucket is public, else null.",
-            "title": "Url"
-          }
-        },
-        "required": [
-          "key",
-          "filename",
-          "size_bytes",
-          "size_human",
-          "content_type",
-          "uploaded_at",
-          "url",
-          "metadata"
-        ],
-        "title": "FileUploadResponse",
-        "type": "object"
-      },
       "FileUrlResponse": {
         "description": "A short-lived presigned GET for downloading or previewing one object.",
         "properties": {
@@ -358,6 +869,101 @@
           "url"
         ],
         "title": "FileUrlResponse",
+        "type": "object"
+      },
+      "GenerationRequest": {
+        "properties": {
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`name`, `name@version`, `owner/name[@version]`, or null for the base model.",
+            "title": "Adapter"
+          },
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt"
+          },
+          "prompt": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "size": {
+            "default": 1024,
+            "enum": [
+              768,
+              1024
+            ],
+            "title": "Size",
+            "type": "integer"
+          },
+          "steps": {
+            "default": 25,
+            "enum": [
+              15,
+              25,
+              40
+            ],
+            "title": "Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "GenerationRequest",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -381,84 +987,1081 @@
             "title": "B2 Connected",
             "type": "boolean"
           },
+          "base_model": {
+            "description": "The shared base model every worker loads.",
+            "title": "Base Model",
+            "type": "string"
+          },
           "status": {
             "description": "\"healthy\" when B2 answered, else \"degraded\".",
             "title": "Status",
             "type": "string"
+          },
+          "workers_online": {
+            "description": "Workers seen within the online window.",
+            "title": "Workers Online",
+            "type": "integer"
           }
         },
         "required": [
           "status",
-          "b2_connected"
+          "b2_connected",
+          "base_model",
+          "workers_online"
         ],
         "title": "HealthStatus",
         "type": "object"
       },
-      "PresignUploadRequest": {
-        "description": "What the browser declares before uploading directly to B2.",
+      "Heartbeat": {
         "properties": {
-          "content_type": {
-            "title": "Content Type",
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "total_steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Steps"
+          },
+          "worker_id": {
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id",
+          "attempt"
+        ],
+        "title": "Heartbeat",
+        "type": "object"
+      },
+      "HeartbeatAck": {
+        "properties": {
+          "lease_expires_at": {
+            "title": "Lease Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lease_expires_at"
+        ],
+        "title": "HeartbeatAck",
+        "type": "object"
+      },
+      "Job": {
+        "properties": {
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter"
+          },
+          "adapter_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter Sha256"
+          },
+          "adapters_after_unload": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapters After Unload"
+          },
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "bytes_fetched": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes Fetched"
+          },
+          "cache": {
+            "anyOf": [
+              {
+                "enum": [
+                  "hit",
+                  "miss",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache"
+          },
+          "created_at": {
+            "title": "Created At",
             "type": "string"
           },
-          "filename": {
-            "title": "Filename",
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
             "type": "string"
           },
-          "size_bytes": {
-            "title": "Size Bytes",
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt"
+          },
+          "output_key": {
+            "title": "Output Key",
+            "type": "string"
+          },
+          "output_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Sha256"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "sha256_verified": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256 Verified"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last denoising step a heartbeat reported.",
+            "title": "Step"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "timings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobTimings"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          }
+        },
+        "required": [
+          "job_id",
+          "run_id",
+          "tenant_id",
+          "adapter",
+          "version",
+          "adapter_sha256",
+          "scale",
+          "state",
+          "attempt",
+          "worker_id",
+          "seed",
+          "steps",
+          "width",
+          "height",
+          "prompt",
+          "negative_prompt",
+          "step",
+          "timings",
+          "cache",
+          "bytes_fetched",
+          "sha256_verified",
+          "output_key",
+          "output_sha256",
+          "adapters_after_unload",
+          "error_code",
+          "error_message",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "Job",
+        "type": "object"
+      },
+      "JobCompletion": {
+        "properties": {
+          "adapters_after_unload": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Adapters After Unload",
+            "type": "array"
+          },
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "bytes_fetched": {
+            "minimum": 0.0,
+            "title": "Bytes Fetched",
+            "type": "integer"
+          },
+          "cache": {
+            "enum": [
+              "hit",
+              "miss",
+              "none"
+            ],
+            "title": "Cache",
+            "type": "string"
+          },
+          "fetch_ms": {
+            "minimum": 0.0,
+            "title": "Fetch Ms",
+            "type": "integer"
+          },
+          "generate_ms": {
+            "minimum": 0.0,
+            "title": "Generate Ms",
+            "type": "integer"
+          },
+          "load_ms": {
+            "minimum": 0.0,
+            "title": "Load Ms",
+            "type": "integer"
+          },
+          "output_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Output Sha256",
+            "type": "string"
+          },
+          "sha256_verified": {
+            "title": "Sha256 Verified",
+            "type": "boolean"
+          },
+          "unload_ms": {
+            "minimum": 0.0,
+            "title": "Unload Ms",
+            "type": "integer"
+          },
+          "worker_id": {
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id",
+          "attempt",
+          "cache",
+          "bytes_fetched",
+          "sha256_verified",
+          "fetch_ms",
+          "load_ms",
+          "generate_ms",
+          "unload_ms",
+          "output_sha256",
+          "adapters_after_unload"
+        ],
+        "title": "JobCompletion",
+        "type": "object"
+      },
+      "JobFailure": {
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "code": {
+            "pattern": "^[a-z0-9_]{1,64}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Message",
+            "type": "string"
+          },
+          "worker_id": {
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id",
+          "attempt",
+          "code"
+        ],
+        "title": "JobFailure",
+        "type": "object"
+      },
+      "JobTimings": {
+        "properties": {
+          "fetch_ms": {
+            "title": "Fetch Ms",
+            "type": "integer"
+          },
+          "generate_ms": {
+            "title": "Generate Ms",
+            "type": "integer"
+          },
+          "load_ms": {
+            "title": "Load Ms",
+            "type": "integer"
+          },
+          "total_ms": {
+            "title": "Total Ms",
+            "type": "integer"
+          },
+          "unload_ms": {
+            "title": "Unload Ms",
             "type": "integer"
           }
         },
         "required": [
-          "filename",
-          "content_type",
-          "size_bytes"
+          "fetch_ms",
+          "load_ms",
+          "generate_ms",
+          "unload_ms",
+          "total_ms"
         ],
-        "title": "PresignUploadRequest",
+        "title": "JobTimings",
         "type": "object"
       },
-      "PresignUploadResponse": {
-        "description": "A short-lived presigned PUT the browser uploads to, plus the exact\nheaders it must send. `Content-Length` and `content-type` are signed into\nthe URL, so B2 rejects a body of any other size or type.",
+      "LibraryEntry": {
+        "description": "One object the app wrote under `APP_PREFIX`, classified by its key.",
         "properties": {
-          "content_type": {
-            "title": "Content Type",
-            "type": "string"
-          },
-          "expires_in": {
-            "title": "Expires In",
-            "type": "integer"
-          },
-          "headers": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Signed into the URL, so the browser must send them verbatim \u2014 B2 answers a mismatch with 403.",
-            "title": "Headers",
-            "type": "object"
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter"
           },
           "key": {
             "title": "Key",
             "type": "string"
           },
-          "method": {
-            "title": "Method",
+          "kind": {
+            "enum": [
+              "adapters",
+              "outputs",
+              "reports"
+            ],
+            "title": "Kind",
             "type": "string"
           },
-          "url": {
-            "title": "Url",
+          "last_modified": {
+            "title": "Last Modified",
             "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           }
         },
         "required": [
           "key",
-          "url",
-          "method",
-          "content_type",
-          "headers",
-          "expires_in"
+          "tenant_id",
+          "kind",
+          "adapter",
+          "version",
+          "run_id",
+          "size_bytes",
+          "last_modified"
         ],
-        "title": "PresignUploadResponse",
+        "title": "LibraryEntry",
+        "type": "object"
+      },
+      "ReportJob": {
+        "properties": {
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter"
+          },
+          "adapter_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter Sha256"
+          },
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "bytes_fetched": {
+            "title": "Bytes Fetched",
+            "type": "integer"
+          },
+          "cache": {
+            "anyOf": [
+              {
+                "enum": [
+                  "hit",
+                  "miss",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "fetch_ms": {
+            "title": "Fetch Ms",
+            "type": "integer"
+          },
+          "generate_ms": {
+            "title": "Generate Ms",
+            "type": "integer"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "load_ms": {
+            "title": "Load Ms",
+            "type": "integer"
+          },
+          "output_key": {
+            "title": "Output Key",
+            "type": "string"
+          },
+          "output_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Sha256"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "total_ms": {
+            "title": "Total Ms",
+            "type": "integer"
+          },
+          "unload_ms": {
+            "title": "Unload Ms",
+            "type": "integer"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          }
+        },
+        "required": [
+          "job_id",
+          "tenant_id",
+          "adapter",
+          "version",
+          "adapter_sha256",
+          "worker_id",
+          "attempt",
+          "state",
+          "cache",
+          "bytes_fetched",
+          "fetch_ms",
+          "load_ms",
+          "generate_ms",
+          "unload_ms",
+          "total_ms",
+          "seed",
+          "steps",
+          "width",
+          "height",
+          "output_key",
+          "output_sha256",
+          "error_code"
+        ],
+        "title": "ReportJob",
+        "type": "object"
+      },
+      "ReportSummary": {
+        "properties": {
+          "cache_hits": {
+            "title": "Cache Hits",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "generate_ms_p50": {
+            "title": "Generate Ms P50",
+            "type": "integer"
+          },
+          "jobs": {
+            "title": "Jobs",
+            "type": "integer"
+          },
+          "load_ms_p50": {
+            "title": "Load Ms P50",
+            "type": "integer"
+          },
+          "retried_jobs": {
+            "title": "Retried Jobs",
+            "type": "integer"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "jobs",
+          "succeeded",
+          "failed",
+          "cache_hits",
+          "load_ms_p50",
+          "generate_ms_p50",
+          "retried_jobs"
+        ],
+        "title": "ReportSummary",
+        "type": "object"
+      },
+      "RunDetail": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/Job"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "report_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Key"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "created_at",
+          "jobs",
+          "report_key"
+        ],
+        "title": "RunDetail",
+        "type": "object"
+      },
+      "RunSummary": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "job_count": {
+            "title": "Job Count",
+            "type": "integer"
+          },
+          "report_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Key"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "done"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "created_at",
+          "job_count",
+          "state",
+          "report_key"
+        ],
+        "title": "RunSummary",
+        "type": "object"
+      },
+      "ServerConfig": {
+        "properties": {
+          "adapter_url_ttl_seconds": {
+            "title": "Adapter Url Ttl Seconds",
+            "type": "integer"
+          },
+          "app_prefix": {
+            "title": "App Prefix",
+            "type": "string"
+          },
+          "base_model": {
+            "title": "Base Model",
+            "type": "string"
+          },
+          "job_lease_seconds": {
+            "title": "Job Lease Seconds",
+            "type": "integer"
+          },
+          "license_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "title": "License Allowlist",
+            "type": "array"
+          },
+          "output_url_ttl_seconds": {
+            "title": "Output Url Ttl Seconds",
+            "type": "integer"
+          },
+          "workers_online": {
+            "title": "Workers Online",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "base_model",
+          "app_prefix",
+          "adapter_url_ttl_seconds",
+          "output_url_ttl_seconds",
+          "job_lease_seconds",
+          "workers_online",
+          "license_allowlist"
+        ],
+        "title": "ServerConfig",
+        "type": "object"
+      },
+      "TenantAdapterEntry": {
+        "properties": {
+          "current_version": {
+            "title": "Current Version",
+            "type": "string"
+          },
+          "default_scale": {
+            "default": 1.0,
+            "title": "Default Scale",
+            "type": "number"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "trigger_words": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Trigger Words",
+            "type": "array"
+          },
+          "versions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TenantVersionEntry"
+            },
+            "title": "Versions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "display_name",
+          "current_version",
+          "versions"
+        ],
+        "title": "TenantAdapterEntry",
+        "type": "object"
+      },
+      "TenantManifest": {
+        "description": "`adapters/<tenant>/manifest.json`: the only index requests resolve through.\n\nWritten LAST on every publish, so a request never resolves to a version\nwhose weight or version manifest is not already in B2.",
+        "properties": {
+          "adapters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TenantAdapterEntry"
+            },
+            "title": "Adapters",
+            "type": "object"
+          },
+          "schema_version": {
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "updated_at"
+        ],
+        "title": "TenantManifest",
+        "type": "object"
+      },
+      "TenantSummary": {
+        "properties": {
+          "adapter_count": {
+            "title": "Adapter Count",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "total_bytes": {
+            "title": "Total Bytes",
+            "type": "integer"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_count": {
+            "title": "Version Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "adapter_count",
+          "version_count",
+          "total_bytes",
+          "updated_at"
+        ],
+        "title": "TenantSummary",
+        "type": "object"
+      },
+      "TenantVersionEntry": {
+        "properties": {
+          "base_model": {
+            "$ref": "#/components/schemas/BaseModelRef"
+          },
+          "license": {
+            "default": "",
+            "title": "License",
+            "type": "string"
+          },
+          "manifest_key": {
+            "title": "Manifest Key",
+            "type": "string"
+          },
+          "published_at": {
+            "default": "",
+            "title": "Published At",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdapterSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weight_key": {
+            "title": "Weight Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "manifest_key",
+          "weight_key",
+          "sha256",
+          "size_bytes",
+          "base_model"
+        ],
+        "title": "TenantVersionEntry",
         "type": "object"
       },
       "UploadStats": {
@@ -535,24 +2138,310 @@
         "title": "ValidationError",
         "type": "object"
       },
-      "VerifyUploadRequest": {
-        "description": "Sent after the direct PUT so the API can inspect the stored object.",
+      "VerifyResult": {
         "properties": {
-          "key": {
-            "title": "Key",
+          "match": {
+            "title": "Match",
+            "type": "boolean"
+          },
+          "sha256_actual": {
+            "title": "Sha256 Actual",
+            "type": "string"
+          },
+          "sha256_expected": {
+            "title": "Sha256 Expected",
+            "type": "string"
+          },
+          "size_actual": {
+            "title": "Size Actual",
+            "type": "integer"
+          },
+          "size_expected": {
+            "title": "Size Expected",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256_expected",
+          "sha256_actual",
+          "size_expected",
+          "size_actual",
+          "match"
+        ],
+        "title": "VerifyResult",
+        "type": "object"
+      },
+      "WorkerAck": {
+        "properties": {
+          "heartbeat_seconds": {
+            "title": "Heartbeat Seconds",
+            "type": "integer"
+          },
+          "lease_seconds": {
+            "title": "Lease Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "heartbeat_seconds",
+          "lease_seconds"
+        ],
+        "title": "WorkerAck",
+        "type": "object"
+      },
+      "WorkerAdapter": {
+        "properties": {
+          "adapter": {
+            "title": "Adapter",
+            "type": "string"
+          },
+          "base_model": {
+            "title": "Base Model",
+            "type": "string"
+          },
+          "scale": {
+            "title": "Scale",
+            "type": "number"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "description": "The version manifest's own tenant_id.",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "url_expires_at": {
+            "title": "Url Expires At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "weight_key": {
+            "title": "Weight Key",
             "type": "string"
           }
         },
         "required": [
-          "key"
+          "tenant_id",
+          "adapter",
+          "version",
+          "sha256",
+          "size_bytes",
+          "base_model",
+          "scale",
+          "weight_key",
+          "url",
+          "url_expires_at"
         ],
-        "title": "VerifyUploadRequest",
+        "title": "WorkerAdapter",
+        "type": "object"
+      },
+      "WorkerHello": {
+        "properties": {
+          "base_model": {
+            "title": "Base Model",
+            "type": "string"
+          },
+          "cache_bytes": {
+            "default": 0,
+            "title": "Cache Bytes",
+            "type": "integer"
+          },
+          "cache_entries": {
+            "default": 0,
+            "title": "Cache Entries",
+            "type": "integer"
+          },
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "dtype": {
+            "title": "Dtype",
+            "type": "string"
+          },
+          "worker_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id",
+          "device",
+          "dtype",
+          "base_model"
+        ],
+        "title": "WorkerHello",
+        "type": "object"
+      },
+      "WorkerJob": {
+        "properties": {
+          "adapter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkerAdapter"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt"
+          },
+          "output_key": {
+            "title": "Output Key",
+            "type": "string"
+          },
+          "output_url": {
+            "title": "Output Url",
+            "type": "string"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "attempt",
+          "run_id",
+          "tenant_id",
+          "adapter",
+          "output_key",
+          "output_url",
+          "prompt",
+          "negative_prompt",
+          "seed",
+          "steps",
+          "width",
+          "height"
+        ],
+        "title": "WorkerJob",
+        "type": "object"
+      },
+      "WorkerStatus": {
+        "properties": {
+          "base_model": {
+            "title": "Base Model",
+            "type": "string"
+          },
+          "cache_bytes": {
+            "title": "Cache Bytes",
+            "type": "integer"
+          },
+          "cache_entries": {
+            "title": "Cache Entries",
+            "type": "integer"
+          },
+          "current_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Job Id"
+          },
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "dtype": {
+            "title": "Dtype",
+            "type": "string"
+          },
+          "jobs_done": {
+            "title": "Jobs Done",
+            "type": "integer"
+          },
+          "last_seen": {
+            "title": "Last Seen",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "worker_id": {
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id",
+          "device",
+          "dtype",
+          "base_model",
+          "last_seen",
+          "online",
+          "current_job_id",
+          "jobs_done",
+          "cache_entries",
+          "cache_bytes"
+        ],
+        "title": "WorkerStatus",
         "type": "object"
       }
     }
   },
   "info": {
-    "description": "Local API for the Diffusers Multi-Tenant LoRA Serving template, providing file upload and management backed by Backblaze B2. This contract documents the template's local API, not a hosted public endpoint.",
+    "description": "Local dispatcher API for the Diffusers Multi-Tenant LoRA Serving sample: a per-tenant LoRA adapter registry in Backblaze B2, tenant-scoped resolution, a leased job queue for stateless GPU workers, and run reports. This contract documents the sample's local API, not a hosted public endpoint.",
     "title": "Diffusers Multi-Tenant LoRA Serving API",
     "version": "0.1.0"
   },
@@ -1062,6 +2951,32 @@
         ]
       }
     },
+    "/fixtures/publish": {
+      "post": {
+        "description": "Publish the pinned demo adapters (acme: 2, globex: 1). Skips existing versions.\n\nDownloads each pinned file from the Hugging Face Hub once, so the first call\ntakes as long as fetching a few hundred MB.",
+        "operationId": "publish_demo_adapters_fixtures_publish_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdapterDetail"
+                  },
+                  "title": "Response Publish Demo Adapters Fixtures Publish Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Publish Demo Adapters",
+        "tags": [
+          "adapters"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health_health_get",
@@ -1080,6 +2995,241 @@
         "summary": "Health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/jobs": {
+      "get": {
+        "operationId": "list_jobs_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "running",
+                    "succeeded",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Job"
+                  },
+                  "title": "Response List Jobs Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/jobs/{job_id}/output": {
+      "get": {
+        "description": "A short-lived presigned GET for the job's generated image.",
+        "operationId": "get_job_output_jobs__job_id__output_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUrlResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job Output",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/library": {
+      "get": {
+        "description": "Objects under `APP_PREFIX`: adapter weights and manifests, outputs, reports.",
+        "operationId": "list_library_library_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "adapters",
+                    "outputs",
+                    "reports"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryEntry"
+                  },
+                  "title": "Response List Library Library Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Library",
+        "tags": [
+          "library"
         ]
       }
     },
@@ -1102,68 +3252,51 @@
         ]
       }
     },
-    "/upload/presign": {
-      "post": {
-        "description": "Validate a declared upload and hand back a presigned PUT.\n\nThe browser uploads the bytes straight to B2 with the returned URL, so they\nnever traverse this Function \u2014 that is what lifts Vercel's ~4.5 MB payload\nceiling. Size and content-type are signed into the URL (see the service).",
-        "operationId": "presign_upload_upload_presign_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PresignUploadRequest"
-              }
-            }
-          },
-          "required": true
-        },
+    "/runs": {
+      "get": {
+        "operationId": "list_runs_runs_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PresignUploadResponse"
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "title": "Response List Runs Runs Get",
+                  "type": "array"
                 }
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
-        "summary": "Presign Upload",
+        "summary": "List Runs",
         "tags": [
-          "upload"
+          "runs"
         ]
       }
     },
-    "/upload/verify": {
+    "/runs/compare": {
       "post": {
-        "description": "Confirm an object just uploaded directly to B2 is valid and visible.",
-        "operationId": "verify_upload_route_upload_verify_post",
+        "description": "One job per adapter (plus the base model), all on the same prompt and seed.",
+        "operationId": "compare_runs_compare_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VerifyUploadRequest"
+                "$ref": "#/components/schemas/CompareRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FileUploadResponse"
+                  "$ref": "#/components/schemas/RunDetail"
                 }
               }
             },
@@ -1180,9 +3313,971 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Verify Upload Route",
+        "summary": "Compare",
         "tags": [
-          "upload"
+          "runs"
+        ]
+      }
+    },
+    "/runs/{run_id}": {
+      "get": {
+        "operationId": "get_run_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/{run_id}/report": {
+      "get": {
+        "operationId": "get_report_runs__run_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Report",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/settings/server": {
+      "get": {
+        "description": "Read-only dispatcher configuration for the Settings page.",
+        "operationId": "server_config_settings_server_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Server Config",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/tenants": {
+      "get": {
+        "operationId": "list_tenants_tenants_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TenantSummary"
+                  },
+                  "title": "Response List Tenants Tenants Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tenants",
+        "tags": [
+          "tenants"
+        ]
+      }
+    },
+    "/tenants/{tenant_id}/adapters": {
+      "get": {
+        "operationId": "list_adapters_tenants__tenant_id__adapters_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdapterSummary"
+                  },
+                  "title": "Response List Adapters Tenants  Tenant Id  Adapters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Adapters",
+        "tags": [
+          "adapters"
+        ]
+      },
+      "post": {
+        "description": "Publish a new adapter or a new version. The tenant manifest is written last.",
+        "operationId": "publish_adapter_tenants__tenant_id__adapters_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_publish_adapter_tenants__tenant_id__adapters_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publish Adapter",
+        "tags": [
+          "adapters"
+        ]
+      }
+    },
+    "/tenants/{tenant_id}/adapters/{adapter}": {
+      "delete": {
+        "description": "Delete every version. `confirm` must equal the adapter name.",
+        "operationId": "delete_adapter_tenants__tenant_id__adapters__adapter__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "adapter",
+            "required": true,
+            "schema": {
+              "title": "Adapter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Confirm",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAdapterResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Adapter",
+        "tags": [
+          "adapters"
+        ]
+      },
+      "get": {
+        "operationId": "get_adapter_tenants__tenant_id__adapters__adapter__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "adapter",
+            "required": true,
+            "schema": {
+              "title": "Adapter",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Adapter",
+        "tags": [
+          "adapters"
+        ]
+      },
+      "patch": {
+        "operationId": "update_adapter_tenants__tenant_id__adapters__adapter__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "adapter",
+            "required": true,
+            "schema": {
+              "title": "Adapter",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdapterUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdapterDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Adapter",
+        "tags": [
+          "adapters"
+        ]
+      }
+    },
+    "/tenants/{tenant_id}/adapters/{adapter}/versions/{version}": {
+      "delete": {
+        "operationId": "delete_version_tenants__tenant_id__adapters__adapter__versions__version__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "adapter",
+            "required": true,
+            "schema": {
+              "title": "Adapter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAdapterResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Version",
+        "tags": [
+          "adapters"
+        ]
+      }
+    },
+    "/tenants/{tenant_id}/adapters/{adapter}/versions/{version}/verify": {
+      "post": {
+        "description": "Re-read the weight from B2 and compare its sha256 and size to the manifest.",
+        "operationId": "verify_version_tenants__tenant_id__adapters__adapter__versions__version__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "adapter",
+            "required": true,
+            "schema": {
+              "title": "Adapter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Version",
+        "tags": [
+          "adapters"
+        ]
+      }
+    },
+    "/tenants/{tenant_id}/generations": {
+      "post": {
+        "description": "Resolve the adapter through this tenant's manifest and queue one job.\n\nRejections create no job and sign no URL: 403 `cross_tenant_adapter` or\n`manifest_tenant_mismatch`, 404 `adapter_not_found`, 422 `base_model_mismatch`.",
+        "operationId": "create_generation_tenants__tenant_id__generations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Generation",
+        "tags": [
+          "generations"
+        ]
+      }
+    },
+    "/tenants/{tenant_id}/manifest": {
+      "get": {
+        "operationId": "get_tenant_manifest_tenants__tenant_id__manifest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantManifest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Tenant Manifest",
+        "tags": [
+          "tenants"
+        ]
+      }
+    },
+    "/worker/jobs/claim": {
+      "post": {
+        "description": "Long poll (up to `wait_seconds`) for the oldest queued job. URLs are signed here.",
+        "operationId": "claim_worker_jobs_claim_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim",
+        "tags": [
+          "worker-protocol"
+        ]
+      }
+    },
+    "/worker/jobs/{job_id}/complete": {
+      "post": {
+        "operationId": "complete_worker_jobs__job_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCompletion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete",
+        "tags": [
+          "worker-protocol"
+        ]
+      }
+    },
+    "/worker/jobs/{job_id}/fail": {
+      "post": {
+        "operationId": "fail_worker_jobs__job_id__fail_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobFailure"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fail",
+        "tags": [
+          "worker-protocol"
+        ]
+      }
+    },
+    "/worker/jobs/{job_id}/heartbeat": {
+      "post": {
+        "operationId": "heartbeat_worker_jobs__job_id__heartbeat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Heartbeat"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Heartbeat",
+        "tags": [
+          "worker-protocol"
+        ]
+      }
+    },
+    "/worker/register": {
+      "post": {
+        "operationId": "register_worker_register_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerHello"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "worker-protocol"
+        ]
+      }
+    },
+    "/workers": {
+      "get": {
+        "operationId": "list_workers_workers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkerStatus"
+                  },
+                  "title": "Response List Workers Workers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Workers",
+        "tags": [
+          "workers"
         ]
       }
     }

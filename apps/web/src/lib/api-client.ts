@@ -1,13 +1,27 @@
 import type {
+  AdapterDetail,
+  AdapterReport,
+  AdapterSummary,
+  AdapterUpdate,
+  CompareRequest,
   DailyUploadCount,
+  DeleteAdapterResult,
   DeleteFileResponse,
   FileMetadata,
   FileMetadataDetail,
-  FileUploadResponse,
   FileUrlResponse,
+  GenerationRequest,
   HealthStatus,
-  PresignUploadResponse,
+  Job,
+  LibraryEntry,
+  RunDetail,
+  RunSummary,
+  ServerConfig,
+  TenantManifest,
+  TenantSummary,
   UploadStats,
+  VerifyResult,
+  WorkerStatus,
 } from "@diffusers-multi-tenant-lora-serving/shared";
 
 import { API_CLIENT_ROUTES } from "./generated/api-routes";
@@ -18,9 +32,10 @@ import { API_CLIENT_ROUTES } from "./generated/api-routes";
 // `lib/api-client`, and that import path should not change just because the
 // registry moved behind a generator.
 //
-// Everything else in this file is hand-written on purpose — error policy, base
-// URL resolution, the legacy-route fallback, the CORS diagnostics and the XHR
-// upload transport are per-app judgement the contract does not describe. See
+// Everything else in this file is hand-written on purpose — error policy
+// (including the API's stable error `code`), base URL resolution, the
+// legacy-route fallback, the CORS diagnostics and the multipart publish
+// request are per-app judgement the contract does not describe. See
 // `scripts/gen/api-gen.config.json` (`escapeHatch`).
 export { API_CLIENT_ROUTES };
 
@@ -38,6 +53,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    /** Stable machine-readable reason from the API (e.g. `cross_tenant_adapter`). */
+    public readonly code: string | null = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -78,32 +95,6 @@ function networkError(): ApiError {
   );
 }
 
-/**
- * Build the status-0 ApiError for a failed browser→B2 PUT.
- *
- * Deliberately not `networkError()`: these bytes never touch the API, so
- * "check the API logs" sends the developer to the one place that looks fine —
- * the presign that produced this URL succeeded and logged a clean 200.
- *
- * On a deployed origin the overwhelmingly likely cause is that the *bucket's*
- * CORS does not allow that origin, so the browser blocks the PUT before it
- * leaves and XHR reports only a contentless `error` event. Local dev rarely
- * trips it because localhost origins are usually already allowed — which is
- * exactly why it first appears immediately after a deploy. Name the cause and
- * the remedy instead of leaving a mystery.
- */
-function storageNetworkError(): ApiError {
-  if (typeof navigator !== "undefined" && navigator.onLine === false) {
-    return new ApiError("You appear to be offline — check your connection", 0);
-  }
-  return new ApiError(
-    "Couldn't upload to B2 storage. If this app is deployed, the bucket's CORS " +
-      "must allow this origin — run services/api/scripts/setup_b2_cors.py " +
-      "--origin <your origin>.",
-    0,
-  );
-}
-
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -114,8 +105,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new ApiError(
-      body.detail || `API error: ${res.status}`,
+      typeof body.detail === "string" ? body.detail : `API error: ${res.status}`,
       res.status,
+      typeof body.code === "string" ? body.code : null,
     );
   }
   return res.json();
@@ -258,84 +250,136 @@ export async function deleteFile(key: string) {
   );
 }
 
-/**
- * Upload a file directly to B2 in three steps: presign (the API validates the
- * declared file and signs a short-lived PUT), a direct browser→B2 PUT, then
- * verify (the API inspects the stored object). The bytes never pass through the
- * API, which is what removes Vercel's ~4.5 MB Function payload ceiling.
- *
- * The `(file, onProgress) => FileUploadResponse` signature is unchanged, so the
- * upload queue and progress UI don't care that the transport changed. Progress
- * tracks the browser→B2 leg; when it reaches 100% the queue enters its
- * server-side phase (see `upload-status`) while `verify` runs.
- */
-export async function uploadFile(
-  file: File,
-  onProgress?: (percent: number) => void
-): Promise<FileUploadResponse> {
-  const presign = await apiFetch<PresignUploadResponse>(
-    API_CLIENT_ROUTES.uploadPresign.path,
-    {
-      method: API_CLIENT_ROUTES.uploadPresign.method.toUpperCase(),
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filename: file.name,
-        content_type: file.type,
-        size_bytes: file.size,
-      }),
+// ---- LoRA serving ----
+
+const enc = encodeURIComponent;
+
+/** Fill `{name}` placeholders of a registry path with URL-encoded values. */
+export function fillPath(path: string, params: Record<string, string>): string {
+  return path.replace(/\{(\w+)\}/g, (_m, name: string) => {
+    const value = params[name];
+    if (value === undefined || value === "") {
+      throw new ApiError(`Missing path parameter: ${name}`, 400);
     }
+    return enc(value);
+  });
+}
+
+function jsonInit(method: string, body?: unknown): RequestInit {
+  return {
+    method: method.toUpperCase(),
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  };
+}
+
+const R = API_CLIENT_ROUTES;
+
+export const getTenants = () => apiFetch<TenantSummary[]>(R.tenants.path);
+
+export const getTenantManifest = (tenant_id: string) =>
+  apiFetch<TenantManifest>(fillPath(R.tenantManifest.path, { tenant_id }));
+
+export const getAdapters = (tenant_id: string) =>
+  apiFetch<AdapterSummary[]>(fillPath(R.adapters.path, { tenant_id }));
+
+export const getAdapter = (tenant_id: string, adapter: string) =>
+  apiFetch<AdapterDetail>(fillPath(R.adapter.path, { tenant_id, adapter }));
+
+/** Fields of the publish form; `file` only for `source: "upload"`. */
+export interface PublishAdapterInput {
+  tenant_id: string;
+  adapter: string;
+  version: string;
+  license: string;
+  source: "huggingface" | "upload";
+  display_name?: string;
+  default_scale: number;
+  trigger_words?: string;
+  hf_repo_id?: string;
+  hf_filename?: string;
+  hf_revision?: string;
+  file?: File | null;
+}
+
+/** Multipart POST: the API reads form fields and an optional file part. */
+export function publishAdapter(input: PublishAdapterInput) {
+  const form = new FormData();
+  const { tenant_id, file, ...fields } = input;
+  for (const [name, value] of Object.entries(fields)) {
+    if (value !== undefined && value !== null && value !== "") form.append(name, String(value));
+  }
+  if (input.source === "upload" && file) form.append("file", file, file.name);
+  return apiFetch<AdapterDetail>(fillPath(R.publishAdapter.path, { tenant_id }), {
+    method: R.publishAdapter.method.toUpperCase(),
+    body: form,
+  });
+}
+
+export const publishFixtures = () =>
+  apiFetch<AdapterDetail[]>(R.publishFixtures.path, jsonInit(R.publishFixtures.method));
+
+export const updateAdapter = (tenant_id: string, adapter: string, patch: AdapterUpdate) =>
+  apiFetch<AdapterDetail>(
+    fillPath(R.updateAdapter.path, { tenant_id, adapter }),
+    jsonInit(R.updateAdapter.method, patch),
   );
 
-  await putFileToStorage(presign, file, onProgress);
+export const deleteAdapter = (tenant_id: string, adapter: string, confirm: string) =>
+  apiFetch<DeleteAdapterResult>(
+    `${fillPath(R.deleteAdapter.path, { tenant_id, adapter })}?confirm=${enc(confirm)}`,
+    { method: R.deleteAdapter.method.toUpperCase() },
+  );
 
-  return apiFetch<FileUploadResponse>(API_CLIENT_ROUTES.uploadVerify.path, {
-    method: API_CLIENT_ROUTES.uploadVerify.method.toUpperCase(),
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key: presign.key }),
-  });
+export const deleteAdapterVersion = (tenant_id: string, adapter: string, version: string) =>
+  apiFetch<DeleteAdapterResult>(
+    fillPath(R.deleteAdapterVersion.path, { tenant_id, adapter, version }),
+    { method: R.deleteAdapterVersion.method.toUpperCase() },
+  );
+
+export const verifyAdapterVersion = (tenant_id: string, adapter: string, version: string) =>
+  apiFetch<VerifyResult>(
+    fillPath(R.verifyAdapterVersion.path, { tenant_id, adapter, version }),
+    jsonInit(R.verifyAdapterVersion.method),
+  );
+
+export const createGeneration = (tenant_id: string, body: GenerationRequest) =>
+  apiFetch<Job>(
+    fillPath(R.createGeneration.path, { tenant_id }),
+    jsonInit(R.createGeneration.method, body),
+  );
+
+export const compareAdapters = (body: CompareRequest) =>
+  apiFetch<RunDetail>(R.compareAdapters.path, jsonInit(R.compareAdapters.method, body));
+
+export const getRuns = () => apiFetch<RunSummary[]>(R.runs.path);
+
+export const getRun = (run_id: string) => apiFetch<RunDetail>(fillPath(R.run.path, { run_id }));
+
+export const getRunReport = (run_id: string) =>
+  apiFetch<AdapterReport>(fillPath(R.runReport.path, { run_id }));
+
+export function getJobs(tenant_id?: string, state?: string) {
+  const q = new URLSearchParams();
+  if (tenant_id) q.set("tenant_id", tenant_id);
+  if (state) q.set("state", state);
+  const qs = q.toString();
+  return apiFetch<Job[]>(qs ? `${R.jobs.path}?${qs}` : R.jobs.path);
 }
 
-/**
- * PUT the raw file bytes to the presigned B2 URL. XHR (not fetch) because only
- * XHR exposes upload progress. The signed URL binds the exact size and
- * content-type, so `presign.headers` must be sent verbatim — B2 answers a
- * mismatch with 403.
- */
-function putFileToStorage(
-  presign: PresignUploadResponse,
-  file: File,
-  onProgress?: (percent: number) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
+export const getJob = (job_id: string) => apiFetch<Job>(fillPath(R.job.path, { job_id }));
 
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    });
+export const getJobOutput = (job_id: string) =>
+  apiFetch<FileUrlResponse>(fillPath(R.jobOutput.path, { job_id }));
 
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-      } else {
-        // B2 errors are XML, not JSON — surface a stable message rather than
-        // the raw body (a 403 here means the signed size/type was violated).
-        reject(
-          new ApiError(`Upload to storage failed (${xhr.status})`, xhr.status)
-        );
-      }
-    });
+export const getWorkers = () => apiFetch<WorkerStatus[]>(R.workers.path);
 
-    xhr.addEventListener("error", () => reject(storageNetworkError()));
-    xhr.addEventListener("abort", () =>
-      reject(new ApiError("Upload aborted", 0)),
-    );
-
-    xhr.open(presign.method.toUpperCase(), presign.url);
-    for (const [name, value] of Object.entries(presign.headers)) {
-      xhr.setRequestHeader(name, value);
-    }
-    xhr.send(file);
-  });
+export function getLibrary(tenant_id?: string, kind?: string) {
+  const q = new URLSearchParams();
+  if (tenant_id) q.set("tenant_id", tenant_id);
+  if (kind) q.set("kind", kind);
+  const qs = q.toString();
+  return apiFetch<LibraryEntry[]>(qs ? `${R.library.path}?${qs}` : R.library.path);
 }
+
+export const getServerConfig = () => apiFetch<ServerConfig>(R.serverConfig.path);

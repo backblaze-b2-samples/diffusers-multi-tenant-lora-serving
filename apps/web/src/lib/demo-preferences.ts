@@ -1,60 +1,45 @@
 /**
- * Illustrative "Profile" and "Preferences" settings for the starter kit.
+ * Generate-form defaults, stored in this browser only.
  *
- * These controls are a deliberate DEMO. They exist to show what a settings page
- * can look like when you adapt the kit — a profile, notification and quota
- * preferences, a default file view — without pretending the kit ships the
- * backend that would make them real (there is no account system, mailer, quota
- * service, or activity log). The Settings page says so in a banner, and this
- * module persists the values to `localStorage` only: a faithful demo of the
- * client-side persistence you would later point at your own API.
+ * Two demo preferences: the default step count and image size that prefill
+ * the Generate and Compare forms. They are saved to `localStorage` (there is
+ * no account system) and namespaced by the app slug.
  *
- * The one preference the app genuinely honours — Theme — is NOT here; it is
- * owned by `next-themes` (see `theme-preference.ts`) and applied for real.
+ * Theme is NOT here; it is owned by `next-themes` (see `theme-preference.ts`).
  */
 
 import { APP_SLUG } from "@/lib/app-config";
 
-export const DEMO_VIEW_OPTIONS = ["tree", "list", "grid"] as const;
-export type DemoViewOption = (typeof DEMO_VIEW_OPTIONS)[number];
+export const STEP_OPTIONS = ["15", "25", "40"] as const;
+export const SIZE_OPTIONS = ["768", "1024"] as const;
+export type StepOption = (typeof STEP_OPTIONS)[number];
+export type SizeOption = (typeof SIZE_OPTIONS)[number];
 
 export interface DemoPreferences {
-  displayName: string;
-  bio: string;
-  defaultView: DemoViewOption;
-  emailOnUpload: boolean;
-  warnNearQuota: boolean;
-  /** Kept as a string to match the numeric `<input>` the form binds to. */
-  quotaThreshold: string;
+  defaultSteps: StepOption;
+  defaultSize: SizeOption;
 }
 
 export const DEMO_PREFERENCES_DEFAULTS: DemoPreferences = {
-  displayName: "Anonymous",
-  bio: "",
-  defaultView: "tree",
-  emailOnUpload: false,
-  warnNearQuota: true,
-  quotaThreshold: "80",
+  defaultSteps: "25",
+  defaultSize: "1024",
 };
 
 /** Namespaced by app slug so two of these apps on one origin cannot collide. */
 export const DEMO_PREFERENCES_STORAGE_KEY = `${APP_SLUG}-demo-preferences`;
 
-function isViewOption(value: unknown): value is DemoViewOption {
-  return (
-    typeof value === "string" &&
-    (DEMO_VIEW_OPTIONS as readonly string[]).includes(value)
-  );
+function oneOf<T extends string>(options: readonly T[], value: unknown, fallback: T): T {
+  return typeof value === "string" && (options as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
 }
 
 /**
- * Read the stored demo preferences, tolerating a missing, corrupt, or partial
- * blob by falling back to the defaults field by field. SSR-safe: returns the
- * defaults when there is no `window`.
+ * Read the stored preferences, tolerating a missing, corrupt or partial blob by
+ * falling back field by field. SSR-safe: returns the defaults without `window`.
  */
 export function loadDemoPreferences(): DemoPreferences {
   if (typeof window === "undefined") return { ...DEMO_PREFERENCES_DEFAULTS };
-
   let stored: unknown;
   try {
     const raw = window.localStorage.getItem(DEMO_PREFERENCES_STORAGE_KEY);
@@ -63,40 +48,15 @@ export function loadDemoPreferences(): DemoPreferences {
   } catch {
     return { ...DEMO_PREFERENCES_DEFAULTS };
   }
-  if (typeof stored !== "object" || stored === null) {
-    return { ...DEMO_PREFERENCES_DEFAULTS };
-  }
-
+  if (typeof stored !== "object" || stored === null) return { ...DEMO_PREFERENCES_DEFAULTS };
   const s = stored as Record<string, unknown>;
   return {
-    displayName:
-      typeof s.displayName === "string"
-        ? s.displayName
-        : DEMO_PREFERENCES_DEFAULTS.displayName,
-    bio: typeof s.bio === "string" ? s.bio : DEMO_PREFERENCES_DEFAULTS.bio,
-    defaultView: isViewOption(s.defaultView)
-      ? s.defaultView
-      : DEMO_PREFERENCES_DEFAULTS.defaultView,
-    emailOnUpload:
-      typeof s.emailOnUpload === "boolean"
-        ? s.emailOnUpload
-        : DEMO_PREFERENCES_DEFAULTS.emailOnUpload,
-    warnNearQuota:
-      typeof s.warnNearQuota === "boolean"
-        ? s.warnNearQuota
-        : DEMO_PREFERENCES_DEFAULTS.warnNearQuota,
-    quotaThreshold:
-      typeof s.quotaThreshold === "string"
-        ? s.quotaThreshold
-        : DEMO_PREFERENCES_DEFAULTS.quotaThreshold,
+    defaultSteps: oneOf(STEP_OPTIONS, s.defaultSteps, DEMO_PREFERENCES_DEFAULTS.defaultSteps),
+    defaultSize: oneOf(SIZE_OPTIONS, s.defaultSize, DEMO_PREFERENCES_DEFAULTS.defaultSize),
   };
 }
 
-/**
- * Persist the demo preferences to `localStorage`. Returns `false` when there is
- * no `window` or storage is blocked (private mode / quota), so the caller can
- * report the failure honestly rather than claiming a save that did not happen.
- */
+/** Persist; returns false when there is no `window` or storage is blocked. */
 export function saveDemoPreferences(values: DemoPreferences): boolean {
   if (typeof window === "undefined") return false;
   try {

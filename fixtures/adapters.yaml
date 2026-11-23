@@ -1,0 +1,48 @@
+# Demo adapters published by `services/api/scripts/publish_fixtures.py`
+# (or the "Publish demo adapters" button). Every entry is a public SDXL 1.0 LoRA
+# whose Hugging Face model card declares a license that permits commercial use
+# and base model stabilityai/stable-diffusion-xl-base-1.0. Each file is pinned
+# by commit; sha256 and size were read from the Hub API (LFS metadata) and
+# re-checked after download. Weights are never committed to this repository.
+#
+# Checked 2026-11-23 with huggingface_hub.model_info. Rejected candidates:
+# ostris/ikea-instructions-lora-sdxl and CiroN2022/toy-face (license: other).
+base_model: stabilityai/stable-diffusion-xl-base-1.0
+# Commit the self-test pins the base model to (BASE_MODEL_REVISION).
+base_model_revision: 462165984030d82259a11f4367a4eed129e94a7b
+tenants:
+  acme:
+    - adapter: pixel-art
+      version: v1
+      display_name: Pixel Art
+      repo_id: nerijs/pixel-art-xl
+      filename: pixel-art-xl.safetensors
+      revision: 8bf4a4d9ea283e00a51fafda8e0539f8248ea037
+      license: creativeml-openrail-m
+      sha256: 4234637cb80c998f41e348e6a6cb6bc20d8d038b2b0f256b6129b3b5e353eef7
+      size_bytes: 170543052
+      default_scale: 1.0
+      trigger_words: ["pixel art"]
+    - adapter: 3d-render
+      version: v1
+      display_name: 3D Render Style
+      repo_id: goofyai/3d_render_style_xl
+      filename: 3d_render_style_xl.safetensors
+      revision: 5ec74a57db5e244a2157173781a7b29045f88237
+      license: apache-2.0
+      sha256: 393de3e04d956b13ac1a41c3a932e196330ad03d7a70abc2a174d911376ec397
+      size_bytes: 85450700
+      default_scale: 1.0
+      trigger_words: ["3d style", "3d render"]
+  globex:
+    - adapter: papercut
+      version: v1
+      display_name: Papercut
+      repo_id: TheLastBen/Papercut_SDXL
+      filename: papercut.safetensors
+      revision: b001f28d3913bc1e4a19f2564fa41e39049bec1c
+      license: creativeml-openrail-m
+      sha256: 98f1729d858e7bf719283797e45661337ce915941b83260026e157d94963c402
+      size_bytes: 340786114
+      default_scale: 1.0
+      trigger_words: ["papercut"]

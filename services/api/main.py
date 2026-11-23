@@ -18,8 +18,9 @@ _REPO_ROOT = _API_ROOT.parents[1] if len(_API_ROOT.parents) > 1 else _API_ROOT
 REPO_ROOT_ENV = _REPO_ROOT / ".env"
 load_dotenv(REPO_ROOT_ENV)
 
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
 from app.config import (  # noqa: E402
@@ -27,8 +28,24 @@ from app.config import (  # noqa: E402
     REQUIRED_B2_SETTINGS,
     settings,
 )
-from app.runtime import files, health, metrics, ratelimit, upload  # noqa: E402
+from app.runtime import (  # noqa: E402
+    adapters,
+    files,
+    fixtures,
+    generations,
+    health,
+    jobs,
+    library,
+    metrics,
+    ratelimit,
+    runs,
+    server_settings,
+    tenants,
+    worker_protocol,
+    workers,
+)
 from app.service.files import warm_listing_cache  # noqa: E402
+from app.types import AppError, ErrorResponse  # noqa: E402
 
 # --- Startup validation ---
 # Required B2 settings are declared with empty-string defaults so that
@@ -109,9 +126,10 @@ logger = logging.getLogger("api")
 
 API_TITLE = "Diffusers Multi-Tenant LoRA Serving API"
 API_DESCRIPTION = (
-    "Local API for the Diffusers Multi-Tenant LoRA Serving template, providing file upload "
-    "and management backed by Backblaze B2. This contract documents the "
-    "template's local API, not a hosted public endpoint."
+    "Local dispatcher API for the Diffusers Multi-Tenant LoRA Serving sample: a "
+    "per-tenant LoRA adapter registry in Backblaze B2, tenant-scoped resolution, "
+    "a leased job queue for stateless GPU workers, and run reports. This "
+    "contract documents the sample's local API, not a hosted public endpoint."
 )
 API_VERSION = "0.1.0"
 
@@ -159,11 +177,31 @@ app.add_middleware(
     # reflect an attacker's origin *with* credentials. Flip to True only when
     # you add cookie-based auth AND have tightened the origin allowlist.
     allow_credentials=False,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
+    """Expected failures carry a stable `code` next to the usual `detail`."""
+    return JSONResponse(
+        status_code=exc.status,
+        content=ErrorResponse(detail=exc.detail, code=exc.code).model_dump(),
+    )
+
+
 app.include_router(health.router, tags=["health"])
-app.include_router(upload.router, tags=["upload"])
+app.include_router(tenants.router, tags=["tenants"])
+app.include_router(adapters.router, tags=["adapters"])
+app.include_router(generations.router, tags=["generations"])
+app.include_router(runs.router, tags=["runs"])
+app.include_router(jobs.router, tags=["jobs"])
+app.include_router(workers.router, tags=["workers"])
+app.include_router(worker_protocol.router, tags=["worker-protocol"])
+app.include_router(library.router, tags=["library"])
+app.include_router(fixtures.router, tags=["adapters"])
+app.include_router(server_settings.router, tags=["settings"])
 app.include_router(files.router, tags=["files"])
 app.include_router(metrics.router, tags=["metrics"])

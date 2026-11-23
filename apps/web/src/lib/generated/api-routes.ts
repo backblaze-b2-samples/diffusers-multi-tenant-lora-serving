@@ -11,7 +11,7 @@
 
 /** The verbs this app's routes actually use, narrowed from the contract. */
 export type ApiClientRoute = {
-  method: "delete" | "get" | "post";
+  method: "delete" | "get" | "patch" | "post";
   path: string;
 };
 
@@ -24,6 +24,8 @@ export type ApiClientRoute = {
 export const API_CLIENT_ROUTES = {
   fileByKeyDelete: { method: "delete", path: "/files-by-key" },
   legacyFileDelete: { method: "delete", path: "/files/{key}" },
+  deleteAdapter: { method: "delete", path: "/tenants/{tenant_id}/adapters/{adapter}" },
+  deleteAdapterVersion: { method: "delete", path: "/tenants/{tenant_id}/adapters/{adapter}/versions/{version}" },
   files: { method: "get", path: "/files" },
   fileByKeyDetail: { method: "get", path: "/files-by-key/detail" },
   fileByKeyDownload: { method: "get", path: "/files-by-key/download" },
@@ -35,6 +37,23 @@ export const API_CLIENT_ROUTES = {
   fileStats: { method: "get", path: "/files/stats" },
   uploadActivity: { method: "get", path: "/files/stats/activity" },
   health: { method: "get", path: "/health" },
-  uploadPresign: { method: "post", path: "/upload/presign" },
-  uploadVerify: { method: "post", path: "/upload/verify" },
+  jobs: { method: "get", path: "/jobs" },
+  job: { method: "get", path: "/jobs/{job_id}" },
+  jobOutput: { method: "get", path: "/jobs/{job_id}/output" },
+  library: { method: "get", path: "/library" },
+  runs: { method: "get", path: "/runs" },
+  run: { method: "get", path: "/runs/{run_id}" },
+  runReport: { method: "get", path: "/runs/{run_id}/report" },
+  serverConfig: { method: "get", path: "/settings/server" },
+  tenants: { method: "get", path: "/tenants" },
+  adapters: { method: "get", path: "/tenants/{tenant_id}/adapters" },
+  adapter: { method: "get", path: "/tenants/{tenant_id}/adapters/{adapter}" },
+  tenantManifest: { method: "get", path: "/tenants/{tenant_id}/manifest" },
+  workers: { method: "get", path: "/workers" },
+  updateAdapter: { method: "patch", path: "/tenants/{tenant_id}/adapters/{adapter}" },
+  publishFixtures: { method: "post", path: "/fixtures/publish" },
+  compareAdapters: { method: "post", path: "/runs/compare" },
+  publishAdapter: { method: "post", path: "/tenants/{tenant_id}/adapters" },
+  verifyAdapterVersion: { method: "post", path: "/tenants/{tenant_id}/adapters/{adapter}/versions/{version}/verify" },
+  createGeneration: { method: "post", path: "/tenants/{tenant_id}/generations" },
 } as const satisfies Record<string, ApiClientRoute>;

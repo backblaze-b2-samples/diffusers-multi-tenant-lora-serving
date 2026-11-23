@@ -63,6 +63,10 @@ apps/web/e2e/verify/
 .data/
 # Legacy location, still ignored for clones that already have it.
 services/api/data/
+# SQLite job queue (JOBS_DB_PATH default) and the worker adapter caches.
+services/api/.data/
+services/worker/.cache/
+services/worker/.spike/
 
 # Local-only working area (machine/user-specific)
 .local/

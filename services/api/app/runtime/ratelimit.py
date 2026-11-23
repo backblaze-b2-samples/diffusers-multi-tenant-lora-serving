@@ -68,6 +68,11 @@ def _reset_state() -> None:
 
 
 async def rate_limit_middleware(request: Request, call_next):
+    # Worker protocol traffic (long-poll claims, heartbeats every few seconds)
+    # is machine traffic from a known pool, gated by WORKER_TOKEN when set; a
+    # per-IP cap would throttle two local workers sharing 127.0.0.1.
+    if request.url.path.startswith("/worker/"):
+        return await call_next(request)
     ip = _client_ip(request)
     tier, limit = _tier_and_limit(request)
     now = time.monotonic()

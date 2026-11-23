@@ -8,35 +8,68 @@ import {
 } from "@tanstack/react-query";
 import {
   ApiError,
+  compareAdapters,
+  createGeneration,
+  deleteAdapter,
+  deleteAdapterVersion,
   deleteFile,
+  getAdapter,
+  getAdapters,
   getDownloadUrl,
   getFileDetail,
   getFiles,
   getFileStats,
   getHealth,
+  getJob,
+  getJobOutput,
+  getJobs,
+  getLibrary,
   getPreviewUrl,
+  getRun,
+  getRunReport,
+  getRuns,
+  getServerConfig,
+  getTenantManifest,
+  getTenants,
   getUploadActivity,
+  getWorkers,
+  publishAdapter,
+  publishFixtures,
+  updateAdapter,
+  verifyAdapterVersion,
+  type PublishAdapterInput,
 } from "@/lib/api-client";
 import type {
+  AdapterDetail,
+  AdapterReport,
+  AdapterUpdate,
+  CompareRequest,
   FileMetadata,
   FileMetadataDetail,
   FileUrlResponse,
+  GenerationRequest,
+  Job,
+  RunDetail,
 } from "@diffusers-multi-tenant-lora-serving/shared";
 import { qk } from "@/lib/generated/query-keys";
+import { isTerminal } from "@/lib/job-state";
 
 // Query keys are GENERATED from the API contract (`pnpm gen:api`) and their
 // hierarchy is declared in `scripts/gen/api-gen.config.json`, so invalidating
 // a parent key still reaches its children and no hook can invent a key the API
-// cannot answer. Re-exported here because this module is the data layer's
-// public surface: components and tests import `qk` from `@/lib/queries`.
+// cannot answer. Generated keys carry query parameters only; hooks for routes
+// with path parameters append those ids to the generated base key.
 //
 // The caching policy below — staleTime, refetchInterval, retry, `enabled`
-// gating, the query-vs-mutation choice, and the cache surgery in
-// `dropDeletedFileFromCache` — is hand-written on purpose and is never
-// generated.
+// gating, polling while jobs are active, the query-vs-mutation choice, and the
+// cache surgery in `dropDeletedFileFromCache` — is hand-written on purpose and
+// is never generated.
 export { qk };
 
 export type Health = Awaited<ReturnType<typeof getHealth>>;
+
+/** Poll interval while any job on screen is still queued or running. */
+export const ACTIVE_POLL_MS = 2_000;
 
 /**
  * Gate a query on something being open/visible. Deliberately the only option we
@@ -83,10 +116,9 @@ export function usePreviewUrl(key: string | undefined, enabled: boolean) {
   });
 }
 
-// Rich metadata for an already-stored file. The server recomputes it on demand
-// (a full object download), so it's only fetched when `enabled` — i.e. the
-// preview dialog is open AND the user expands "Detailed metadata". Kept
-// short-lived like the preview URL; cheap correctness under key overwrites.
+// Core details (checksums, image size) for an already-stored file. The server
+// recomputes them on demand (a full object download), so they are only fetched
+// when `enabled` — the preview dialog is open AND the user expands details.
 export function useFileDetail(key: string | undefined, enabled: boolean) {
   return useQuery<FileMetadataDetail, ApiError>({
     queryKey: qk.detail(key ?? ""),
@@ -96,31 +128,23 @@ export function useFileDetail(key: string | undefined, enabled: boolean) {
   });
 }
 
-// Health poll for the top-of-app B2 banner. `retry: false` and letting a
-// failed fetch leave `data` undefined keeps a down API silent (the
-// per-component ErrorState covers that); the banner only reacts to an up API
-// reporting b2_connected: false. Polls every 60s and on window focus.
+// Health poll for the top-of-app B2 banner. `retry: false` keeps a down API
+// silent (the per-component ErrorState covers that); the banner only reacts to
+// an up API reporting b2_connected: false. Polls every 30s and on focus.
 export function useHealth() {
   return useQuery<Health>({
     queryKey: qk.health(),
     queryFn: getHealth,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
     retry: false,
   });
 }
 
 /**
  * Drop a deleted object from every cached file list, plus its own cached
- * preview/detail entries.
- *
- * Invalidation alone is not enough: the refetch re-lists the whole bucket and
- * took 5-6s in practice, so the success toast fired while the row was still
- * listed — and using that stale row's Preview 404'd. Editing the cache makes
- * the row disappear with the toast; the invalidation that follows still
- * reconciles against the server.
- *
- * Exported for tests — the mutation below is its only production caller.
+ * preview/detail entries, so the row disappears with the success toast instead
+ * of after a full re-list. Exported for tests.
  */
 export function dropDeletedFileFromCache(qc: QueryClient, fileKey: string) {
   qc.setQueriesData<FileMetadata[]>(
@@ -129,29 +153,18 @@ export function dropDeletedFileFromCache(qc: QueryClient, fileKey: string) {
     (previous) =>
       previous ? previous.filter((file) => file.key !== fileKey) : previous,
   );
-  // A presigned URL for a deleted key can only 404 now.
   qc.removeQueries({ queryKey: qk.preview(fileKey) });
   qc.removeQueries({ queryKey: qk.detail(fileKey) });
 }
 
 /**
- * Fetch a download URL for one file.
- *
- * A mutation, not a query: it has a server side effect (it bumps the download
- * counter) and it must never be cached or replayed. Being a mutation is also
- * what gives the UI an honest pending state — the old code awaited the presign
- * inside a plain click handler, so a slow round trip left the screen completely
- * unchanged and a user could not tell a working download from a dead button.
- *
- * The caller performs the navigation (see `lib/browser-download.ts`) and gets
- * `isPending` / `variables` for the pending row.
+ * Fetch a download URL for one file. A mutation, not a query: it bumps the
+ * download counter server-side and must never be cached or replayed.
  */
 export function useDownloadUrl() {
   const qc = useQueryClient();
   return useMutation<FileUrlResponse, ApiError, FileMetadata>({
     mutationFn: (file) => getDownloadUrl(file.key),
-    // The server counted a download, so the dashboard's "Total Downloads" is
-    // now stale. Cheap: /files/stats reads a cached bucket listing.
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.stats() }),
   });
 }
@@ -161,10 +174,194 @@ export function useDeleteFile() {
   return useMutation({
     mutationFn: (fileKey: string) => deleteFile(fileKey),
     onSuccess: (_data, fileKey) => {
-      // Remove the row immediately, then reconcile everything (lists, stats,
-      // activity) against the server in the background.
       dropDeletedFileFromCache(qc, fileKey);
       qc.invalidateQueries({ queryKey: qk.all });
     },
   });
+}
+
+// ---- Tenants and adapters ----
+
+export function useTenants() {
+  return useQuery({ queryKey: qk.tenants(), queryFn: getTenants });
+}
+
+export function useAdapters(tenantId: string | undefined) {
+  return useQuery({
+    queryKey: [...qk.adapters(), tenantId ?? ""],
+    queryFn: () => getAdapters(tenantId as string),
+    enabled: !!tenantId,
+  });
+}
+
+export function useAdapter(tenantId: string, adapter: string) {
+  return useQuery<AdapterDetail, ApiError>({
+    queryKey: [...qk.adapter(), tenantId, adapter],
+    queryFn: () => getAdapter(tenantId, adapter),
+    retry: (count, err) => !err.isNotFound && count < 2,
+  });
+}
+
+export function useTenantManifest(tenantId: string, { enabled = true }: QueryGate = {}) {
+  return useQuery({
+    queryKey: [...qk.tenantManifest(), tenantId],
+    queryFn: () => getTenantManifest(tenantId),
+    enabled: enabled && !!tenantId,
+  });
+}
+
+/** Every registry write changes tenants, adapters and manifests: refresh them all. */
+function invalidateRegistry(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: qk.tenants() });
+  qc.invalidateQueries({ queryKey: qk.library() });
+  qc.invalidateQueries({ queryKey: [...qk.all, "files"] });
+}
+
+export function usePublishAdapter() {
+  const qc = useQueryClient();
+  return useMutation<AdapterDetail, ApiError, PublishAdapterInput>({
+    mutationFn: publishAdapter,
+    onSuccess: () => invalidateRegistry(qc),
+  });
+}
+
+export function usePublishFixtures() {
+  const qc = useQueryClient();
+  return useMutation<AdapterDetail[], ApiError, void>({
+    mutationFn: () => publishFixtures(),
+    onSuccess: () => invalidateRegistry(qc),
+  });
+}
+
+export function useUpdateAdapter(tenantId: string, adapter: string) {
+  const qc = useQueryClient();
+  return useMutation<AdapterDetail, ApiError, AdapterUpdate>({
+    mutationFn: (patch) => updateAdapter(tenantId, adapter, patch),
+    onSuccess: (detail) => {
+      qc.setQueryData([...qk.adapter(), tenantId, adapter], detail);
+      invalidateRegistry(qc);
+    },
+  });
+}
+
+export function useDeleteAdapter(tenantId: string, adapter: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (confirm: string) => deleteAdapter(tenantId, adapter, confirm),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: [...qk.adapter(), tenantId, adapter] });
+      invalidateRegistry(qc);
+    },
+  });
+}
+
+export function useDeleteAdapterVersion(tenantId: string, adapter: string) {
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, string>({
+    mutationFn: (version) => deleteAdapterVersion(tenantId, adapter, version),
+    onSuccess: () => invalidateRegistry(qc),
+  });
+}
+
+export function useVerifyAdapterVersion(tenantId: string, adapter: string) {
+  return useMutation({
+    mutationFn: (version: string) => verifyAdapterVersion(tenantId, adapter, version),
+  });
+}
+
+// ---- Generation, runs and jobs ----
+
+function invalidateJobs(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: qk.jobs() });
+  qc.invalidateQueries({ queryKey: qk.runs() });
+}
+
+export function useCreateGeneration() {
+  const qc = useQueryClient();
+  return useMutation<Job, ApiError, { tenantId: string; body: GenerationRequest }>({
+    mutationFn: ({ tenantId, body }) => createGeneration(tenantId, body),
+    onSuccess: () => invalidateJobs(qc),
+  });
+}
+
+export function useCompareAdapters() {
+  const qc = useQueryClient();
+  return useMutation<RunDetail, ApiError, CompareRequest>({
+    mutationFn: compareAdapters,
+    onSuccess: () => invalidateJobs(qc),
+  });
+}
+
+/** Jobs list; polls while any listed job is still active. */
+export function useJobs(tenantId?: string, state?: string) {
+  return useQuery({
+    queryKey: qk.jobs(tenantId, state),
+    queryFn: () => getJobs(tenantId, state),
+    refetchInterval: (q) =>
+      q.state.data?.some((j) => !isTerminal(j.state)) ? ACTIVE_POLL_MS : 15_000,
+  });
+}
+
+/** One job; polls until it reaches a terminal state. */
+export function useJob(jobId: string | undefined) {
+  return useQuery({
+    queryKey: [...qk.job(), jobId ?? ""],
+    queryFn: () => getJob(jobId as string),
+    enabled: !!jobId,
+    refetchInterval: (q) => (q.state.data && isTerminal(q.state.data.state) ? false : ACTIVE_POLL_MS),
+  });
+}
+
+/** Presigned URL for a succeeded job's image (cached briefly; URLs expire). */
+export function useJobOutput(jobId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...qk.jobOutput(), jobId],
+    queryFn: () => getJobOutput(jobId),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useRuns() {
+  return useQuery({
+    queryKey: qk.runs(),
+    queryFn: getRuns,
+    refetchInterval: (q) =>
+      q.state.data?.some((r) => r.state === "active") ? ACTIVE_POLL_MS : 15_000,
+  });
+}
+
+/** One run; polls while any of its jobs is active. */
+export function useRun(runId: string) {
+  return useQuery<RunDetail, ApiError>({
+    queryKey: [...qk.run(), runId],
+    queryFn: () => getRun(runId),
+    refetchInterval: (q) =>
+      q.state.data?.jobs.some((j) => !isTerminal(j.state)) ? ACTIVE_POLL_MS : false,
+  });
+}
+
+/** The run's adapters.json; 404 until the run's last job ends, so no retry. */
+export function useRunReport(runId: string, enabled: boolean) {
+  return useQuery<AdapterReport, ApiError>({
+    queryKey: [...qk.runReport(), runId],
+    queryFn: () => getRunReport(runId),
+    enabled,
+    retry: false,
+  });
+}
+
+export function useWorkers() {
+  return useQuery({ queryKey: qk.workers(), queryFn: getWorkers, refetchInterval: 10_000 });
+}
+
+export function useLibrary(tenantId?: string, kind?: string) {
+  return useQuery({
+    queryKey: qk.library(tenantId, kind),
+    queryFn: () => getLibrary(tenantId, kind),
+  });
+}
+
+export function useServerConfig() {
+  return useQuery({ queryKey: qk.serverConfig(), queryFn: getServerConfig, staleTime: 60_000 });
 }

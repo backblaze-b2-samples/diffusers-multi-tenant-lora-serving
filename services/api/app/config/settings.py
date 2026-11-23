@@ -55,12 +55,41 @@ class Settings(BaseSettings):
     # listing each one. NEVER ship this to production.
     api_cors_origin_regex: str = ""
 
-    # Upload limits
+    # Detail-panel ceiling: `/files-by-key/detail` downloads the object to hash
+    # it, so objects above this size are refused rather than buffered in memory.
     max_file_size: int = 100 * 1024 * 1024  # 100MB
-    # TTL for the presigned PUT the browser uploads directly to B2 with. Long
-    # enough for a big file on a slow link, short enough that a leaked URL is a
-    # narrow, single-key, single-size window.
-    presign_upload_expiry_seconds: int = 900  # 15 minutes
+
+    # --- LoRA serving ---
+    # The one shared base model. Every version manifest records the base model it
+    # was published for, and the resolver refuses a manifest whose base differs.
+    base_model: str = "stabilityai/stable-diffusion-xl-base-1.0"
+    # Root for adapters/, outputs/ and reports/, so the app can share a bucket.
+    app_prefix: str = "lora-serving/"
+    # Presigned URL lifetimes. Issued at claim time, never at enqueue, so a URL
+    # is valid only while the worker that received it holds the job's lease.
+    adapter_url_ttl_seconds: int = 300
+    output_url_ttl_seconds: int = 600
+    # Job leases: a worker that stops heartbeating loses its job after this
+    # many seconds, and the next claim re-queues it with the same seed.
+    job_lease_seconds: int = 30
+    job_heartbeat_seconds: int = 5
+    job_max_attempts: int = 3
+    # SQLite job queue. Relative paths resolve against services/api/.
+    jobs_db_path: str = ".data/jobs.sqlite3"
+    # Shared secret for /worker/* routes. Unset = open (local demo); doctor warns.
+    worker_token: str = ""
+    # Only for gated or private Hugging Face adapter sources.
+    hf_token: str = ""
+    # Largest adapter file accepted for publish.
+    max_adapter_bytes: int = 2 * 1024 * 1024 * 1024
+    # Adapter licenses accepted at publish. Each permits commercial use; the
+    # Open RAIL ones carry use-based restrictions the README passes on.
+    license_allowlist: tuple[str, ...] = (
+        "creativeml-openrail-m",
+        "openrail++",
+        "apache-2.0",
+        "mit",
+    )
 
     # Optional confinement for key-addressed reads/deletes. Empty by default so
     # the by-key routes accept any key shape (they deliberately support nested
@@ -125,6 +154,12 @@ class Settings(BaseSettings):
         edit here rather than an environment variable.
         """
         return f"https://s3.{self.b2_region}.backblazeb2.com"
+
+    @property
+    def prefix(self) -> str:
+        """`APP_PREFIX` normalised to end with exactly one slash ("" stays "")."""
+        p = self.app_prefix.strip().lstrip("/")
+        return p if not p or p.endswith("/") else p + "/"
 
     @property
     def cors_origins(self) -> list[str]:

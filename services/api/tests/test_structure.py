@@ -100,3 +100,26 @@ def test_all_layers_exist():
         assert layer_dir.exists(), f"Missing layer directory: app/{layer}/"
         init_file = layer_dir / "__init__.py"
         assert init_file.exists(), f"Missing __init__.py in app/{layer}/"
+
+
+def test_huggingface_hub_only_in_repo():
+    """Third-party Hub client stays contained in app/repo/ (hf_source.py)."""
+    violations = []
+    for pyfile in _get_python_files(APP_ROOT):
+        if pyfile.parent.name == "repo":
+            continue
+        for imp in _get_imports(pyfile):
+            if imp == "huggingface_hub" or imp.startswith("huggingface_hub."):
+                violations.append(str(pyfile.relative_to(APP_ROOT.parent)))
+    assert violations == [], "huggingface_hub outside repo/:\n" + "\n".join(violations)
+
+
+def test_no_torch_or_diffusers_in_api():
+    """Torch and Diffusers live only in services/worker; the API stays torch-free."""
+    banned = ("torch", "diffusers", "peft", "transformers")
+    violations = []
+    for pyfile in _get_python_files(APP_ROOT):
+        for imp in _get_imports(pyfile):
+            if imp.split(".")[0] in banned:
+                violations.append(f"{pyfile.relative_to(APP_ROOT.parent)}: {imp}")
+    assert violations == [], "\n".join(violations)

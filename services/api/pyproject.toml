@@ -28,4 +28,7 @@ quote-style = "double"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = ["live: opt-in tests that can contact a real external service"]
+markers = [
+    "live: opt-in tests that can contact a real external service",
+    "selftest: end-to-end LoRA serving check (real B2, local GPU, two workers)",
+]

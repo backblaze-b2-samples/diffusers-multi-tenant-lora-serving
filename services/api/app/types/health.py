@@ -14,3 +14,5 @@ class HealthStatus(ResponseModel):
     b2_connected: bool = Field(
         description="True when the bucket answered a cheap head request."
     )
+    base_model: str = Field(description="The shared base model every worker loads.")
+    workers_online: int = Field(description="Workers seen within the online window.")

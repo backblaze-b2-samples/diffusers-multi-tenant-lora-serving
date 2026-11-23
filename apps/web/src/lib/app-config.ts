@@ -1,7 +1,7 @@
 // Single source of truth for app identity. Rename here to rebrand a clone of this starter.
 export const APP_NAME = "Diffusers Multi-Tenant LoRA Serving";
 export const APP_DESCRIPTION =
-  "File management dashboard template powered by Backblaze B2";
+  "Serve many tenants' LoRA adapters from Backblaze B2 on one shared Diffusers base model";
 
 /**
  * URL- and storage-safe form of APP_NAME ("My Sample App" -> "my-sample-app").

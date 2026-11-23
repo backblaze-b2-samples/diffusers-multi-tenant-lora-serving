@@ -44,29 +44,15 @@ describe("loadDemoPreferences", () => {
 
   it("round-trips a full set of values", () => {
     installStorage();
-    const values: DemoPreferences = {
-      displayName: "Ada Lovelace",
-      bio: "first programmer",
-      defaultView: "grid",
-      emailOnUpload: true,
-      warnNearQuota: false,
-      quotaThreshold: "72",
-    };
+    const values: DemoPreferences = { defaultSteps: "40", defaultSize: "768" };
     expect(saveDemoPreferences(values)).toBe(true);
     expect(loadDemoPreferences()).toEqual(values);
   });
 
   it("falls back field-by-field on a partial or wrongly-typed blob", () => {
     const store = installStorage();
-    store[KEY] = JSON.stringify({
-      displayName: "Grace",
-      defaultView: "spreadsheet", // not a valid option
-      emailOnUpload: "yes", // wrong type
-    });
-    expect(loadDemoPreferences()).toEqual({
-      ...DEMO_PREFERENCES_DEFAULTS,
-      displayName: "Grace",
-    });
+    store[KEY] = JSON.stringify({ defaultSteps: "15", defaultSize: 512 });
+    expect(loadDemoPreferences()).toEqual({ defaultSteps: "15", defaultSize: "1024" });
   });
 
   it("returns defaults on corrupt JSON rather than throwing", () => {
@@ -84,11 +70,9 @@ describe("saveDemoPreferences", () => {
   it("returns false when storage throws (blocked / quota)", () => {
     vi.stubGlobal("window", {
       localStorage: {
-        getItem: () => null,
         setItem: () => {
           throw new Error("QuotaExceededError");
         },
-        removeItem: () => {},
       },
     });
     expect(saveDemoPreferences(DEMO_PREFERENCES_DEFAULTS)).toBe(false);

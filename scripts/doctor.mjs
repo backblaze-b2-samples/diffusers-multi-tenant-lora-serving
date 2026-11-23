@@ -220,6 +220,18 @@ function checkEnv() {
       "Edit .env and replace placeholders with your real B2 credentials (https://secure.backblaze.com/app_keys.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-diffusers-lora-weights-hub)",
     );
   }
+  if (!env.WORKER_TOKEN && !process.env.WORKER_TOKEN) {
+    warn(
+      "WORKER_TOKEN is unset, so the /worker/* routes accept any caller",
+      "ok for a local demo; set the same WORKER_TOKEN for the API and every worker before exposing the dispatcher",
+    );
+  }
+  if (!existsSync(resolve(REPO_ROOT, "services/worker/.venv/bin/python"))) {
+    warn(
+      "services/worker/.venv is missing, so `pnpm worker` cannot start",
+      "Run `pnpm run setup` (it creates the worker venv with PyTorch and Diffusers)",
+    );
+  }
 }
 
 // ----- Network -----

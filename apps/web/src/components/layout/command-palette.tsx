@@ -2,11 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  Upload,
-  FolderOpen,
-  Settings,
-  Sparkles,
   FileIcon,
   Moon,
   Sun,
@@ -28,6 +23,7 @@ import {
   fileListTruncationNotice,
 } from "@/lib/file-list-limit";
 import { previewHref } from "@/lib/preview-deep-link";
+import { NAV_ITEMS, UTIL_ITEMS } from "@/lib/nav";
 import { useFileStats, useFiles } from "@/lib/queries";
 
 interface CommandPaletteProps {
@@ -35,13 +31,11 @@ interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const routes = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Upload", href: "/upload", icon: Upload },
-  { label: "Files", href: "/files", icon: FolderOpen },
-  { label: "Settings", href: "/settings", icon: Settings },
-  { label: "Design System", href: "/design", icon: Sparkles },
-];
+const routes = [...NAV_ITEMS, ...UTIL_ITEMS].map((item) => ({
+  label: item.title,
+  href: item.href,
+  icon: item.icon,
+}));
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const router = useRouter();
@@ -75,7 +69,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       <CommandInput placeholder="Search files or jump to a page..." />
       <CommandList>
         <CommandEmpty>
-          {/* On a route that never fetched the list (e.g. /upload) the query
+          {/* On a route that never fetched the list (e.g. /settings) the query
               starts cold when the palette opens, so a flat "No matches found."
               told the user their file didn't exist while it was visible on the
               page behind the dialog. Say we're still looking instead. */}

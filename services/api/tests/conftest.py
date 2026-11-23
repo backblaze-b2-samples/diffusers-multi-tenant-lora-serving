@@ -74,8 +74,7 @@ def reset_shared_module_state():
     with metrics._lock:
         metrics._request_count.clear()
         metrics._request_duration_sum.clear()
-        metrics._upload_count = 0
-        metrics._upload_errors = 0
+        metrics._rejections.clear()
     yield
     cached_get_s3_client.cache_clear()
 
@@ -92,3 +91,52 @@ def isolate_download_counter(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "download_count_file", str(counter_path))
     monkeypatch.setattr(counter, "_count", 0)
     yield
+
+
+@pytest.fixture(autouse=True)
+def isolate_jobs_db(tmp_path, monkeypatch):
+    """Each test gets its own SQLite job queue and an empty manifest cache."""
+    from app.config import settings
+    from app.repo import jobs_db
+    from app.service import manifests
+
+    monkeypatch.setattr(settings, "jobs_db_path", str(tmp_path / "jobs.sqlite3"))
+    jobs_db.reset_for_tests()
+    manifests.forget()
+    yield
+    jobs_db.reset_for_tests()
+
+
+@pytest.fixture
+def fake_store(monkeypatch):
+    """Swap every adapter_store function for an in-memory fake."""
+    from app.repo import adapter_store
+    from tests.fakes import FakeStore
+
+    store = FakeStore()
+    for name in (
+        "upload_stream", "put_bytes", "put_json", "get_json", "head", "hash_object",
+        "presign_get", "presign_put", "iter_objects", "list_child_prefixes", "delete_keys",
+    ):
+        monkeypatch.setattr(adapter_store, name, getattr(store, name))
+    return store
+
+
+@pytest.fixture
+def publish(fake_store):
+    """Publish a tiny adapter straight through the registry service."""
+    import io
+
+    from app.service import registry
+    from app.types import AdapterSource
+    from tests.fakes import make_safetensors
+
+    def _publish(tenant, adapter, version="v1", seed=0, license="creativeml-openrail-m"):
+        data = make_safetensors(seed)
+        inp = registry.PublishInput(
+            tenant_id=tenant, adapter=adapter, version=version, license=license,
+            source=AdapterSource(type="upload", filename="a.safetensors"),
+        )
+        return registry.publish(inp, io.BytesIO(data), len(data), "a.safetensors")
+
+    return _publish

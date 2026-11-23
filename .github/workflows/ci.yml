@@ -1,4 +1,4 @@
-name: CI
+name: diffusers-multi-tenant-lora-serving CI
 
 # Runs the canonical non-live verification gate documented in AGENTS.md and
 # docs/verification.md. `pnpm verify` = `pnpm check:agent-docs &&
@@ -110,3 +110,31 @@ jobs:
 
       - name: Frontend lint, unit tests, typecheck + build
         run: pnpm verify:web
+
+  # Worker offline tests: CPU only, a fake pipeline object stands in for
+  # Diffusers, so only the worker's light dependencies are installed (exact
+  # versions from its lock). The real model path is covered by `pnpm selftest`,
+  # which needs a GPU and real B2 credentials and never runs in CI.
+  verify-worker:
+    name: Verify worker (offline tests)
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install worker test dependencies
+        working-directory: services/worker
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install $(grep -E '^(httpx|httpcore|h11|anyio|idna|certifi|pytest|pluggy|iniconfig|packaging|pygments|ruff)==' requirements.lock)
+
+      - name: Worker lint and offline tests
+        working-directory: services/worker
+        run: |
+          .venv/bin/ruff check .
+          .venv/bin/python -m pytest

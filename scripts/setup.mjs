@@ -24,6 +24,10 @@ const ENV_FILE = resolve(REPO_ROOT, ".env");
 const VENV_DIR = resolve(API_DIR, ".venv");
 const VENV_PYTHON = resolve(VENV_DIR, "bin/python");
 const REQUIREMENTS_LOCK = resolve(API_DIR, "requirements.lock");
+// The GPU worker has its own venv: torch and Diffusers stay out of the API's.
+const WORKER_DIR = resolve(REPO_ROOT, "services/worker");
+const WORKER_PYTHON = resolve(WORKER_DIR, ".venv/bin/python");
+const WORKER_LOCK = resolve(WORKER_DIR, "requirements.lock");
 
 function fail(message) {
   console.error(`setup: ${message}`);
@@ -122,6 +126,13 @@ function main() {
   run("pnpm", ["install", "--frozen-lockfile"], REPO_ROOT);
   ensureVenv(pythonBin);
   run(VENV_PYTHON, ["-m", "pip", "install", "-r", REQUIREMENTS_LOCK], API_DIR);
+
+  // Worker venv (PyTorch, Diffusers, PEFT; about 1 GB of wheels). The SDXL base
+  // model itself (about 7 GB) downloads on the first `pnpm worker` start.
+  if (!existsSync(WORKER_PYTHON)) {
+    run(pythonBin ?? VENV_PYTHON, ["-m", "venv", ".venv"], WORKER_DIR);
+  }
+  run(WORKER_PYTHON, ["-m", "pip", "install", "-r", WORKER_LOCK], WORKER_DIR);
 
   console.log("\nSetup complete. Run `pnpm run doctor` to validate credentials and local server access.");
 }

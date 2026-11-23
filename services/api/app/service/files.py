@@ -15,7 +15,7 @@ from app.repo import (
     list_files,
     prewarm_listing,
 )
-from app.service.metadata import extract_metadata
+from app.service.file_detail import core_metadata
 from app.types import FileMetadata, FileMetadataDetail, UploadStats
 from app.types.formatting import humanize_bytes
 from app.types.stats import DailyUploadCount
@@ -118,12 +118,12 @@ def get_file(key: str) -> FileMetadata:
 
 
 def get_file_detail(key: str) -> FileMetadataDetail:
-    """Recompute rich metadata (checksums, image/PDF fields) for a stored object.
+    """Recompute core details (checksums, image size) for a stored object.
 
     Extraction is not persisted and (since uploads go directly to B2) no longer
     runs at upload, so the Files browser would otherwise only ever see the core
     object fields. This downloads the object on demand and runs
-    `extract_metadata()`.
+    `core_metadata()`.
 
     It buffers the whole object in memory, so we `head` first to reject objects
     above `max_file_size` before downloading. Raises FileKeyError (invalid key),
@@ -140,7 +140,7 @@ def get_file_detail(key: str) -> FileMetadataDetail:
             f"Max size: {humanize_bytes(settings.max_file_size)}"
         )
     data = get_object_bytes(key)
-    return extract_metadata(
+    return core_metadata(
         data, metadata.filename, metadata.content_type, metadata.uploaded_at
     )
 

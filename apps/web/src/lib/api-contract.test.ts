@@ -51,7 +51,15 @@ const OPENAPI_METHODS = new Set<RouteMethod>([
 
 // Prometheus metrics are intentionally scraped server-side, not called by the
 // app shell. Add future backend-only operations here deliberately.
-const SERVER_ONLY_OPERATIONS = new Set(["get /metrics"]);
+const SERVER_ONLY_OPERATIONS = new Set([
+  "get /metrics",
+  // The worker protocol is called by GPU workers, never by the browser.
+  "post /worker/register",
+  "post /worker/jobs/claim",
+  "post /worker/jobs/{job_id}/heartbeat",
+  "post /worker/jobs/{job_id}/complete",
+  "post /worker/jobs/{job_id}/fail",
+]);
 
 function operationKey(method: string, path: string) {
   return `${method} ${path}`;

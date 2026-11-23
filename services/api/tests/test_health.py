@@ -34,6 +34,8 @@ async def test_health_reports_connectivity(
     assert response.json() == {
         "status": expected_status,
         "b2_connected": b2_connected,
+        "base_model": "stabilityai/stable-diffusion-xl-base-1.0",
+        "workers_online": 0,
     }
 
 
@@ -60,4 +62,4 @@ async def test_metrics_returns_200(client):
     response = await client.get("/metrics")
     assert response.status_code == 200
     assert "http_requests_total" in response.text
-    assert "uploads_total" in response.text
+    assert "adapter_rejections_total" in response.text
